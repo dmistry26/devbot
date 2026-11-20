@@ -2,7 +2,7 @@
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript · Tailwind CSS 4 · Framer Motion · Zustand · date-fns · Lucide · Anthropic SDK. Planned: Supabase (Postgres, Auth, RLS, Edge Functions, cron) and Vercel.
+Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript · Tailwind CSS 4 · Framer Motion · Zustand · date-fns · Lucide · Google Gen AI SDK (Gemini) · Anthropic SDK (optional). Planned: Supabase (Postgres, Auth, RLS, Edge Functions, cron) and Vercel.
 
 ## Data flow
 
@@ -18,12 +18,21 @@ Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript �
 
 ## AI
 
+- **Providers** (`lib/ai/provider.ts`): one interface, two adapters: `providers/gemini.ts` (default, free tier) and `providers/anthropic.ts`. `AI_PROVIDER` picks one explicitly; otherwise devbot uses whichever key is set, Gemini first. Tool schemas are defined once as provider-neutral JSON Schema (`lib/ai/tools.ts`). The Gemini adapter turns nullable fields into optional ones, and `normalizeInput` fills missing fields back in with null.
+- Free-tier note: Google may use free-tier Gemini prompts, which include your task and schedule context, to improve its products.
 - `POST /api/command` sends the conversation, a snapshot of your data and your local time.
 - The server builds a compact context block (open tasks, the next 14 days of schedule, free time, projects) and calls Claude with **strict tool schemas** (`lib/ai/tools.ts`).
 - The model's tool calls are **not executed on the server**. They go back to the browser as a proposal. The confirm card validates each one (for example, it rejects unknown ids or bad dates). Only actions you tick are applied, and the result is undoable.
 - The system prompt and tools are stable and cached. The volatile context goes in the last user turn.
 - Two agents share one dataset: **Chief of Staff** (planning, coordination) and **Academic Staff** (school, study plans). The model is configured in one place (`DEVBOT_MODEL`).
-- A server-side refusal fallback is enabled (`fallbacks: "default"`).
+- With Claude, a server-side refusal fallback is enabled on models that support it.
+- Proposed events and moves that overlap existing events are flagged on the confirm card.
+
+## Calendar
+
+- `lib/calendar.ts`: expands repeating events over a range, finds conflicts (for a repeating event it checks occurrences over the next 4 weeks), and lays out overlapping events side by side in a time grid.
+- `components/calendar/CalendarView.tsx`: month, week, day and agenda views. Click an empty slot to create an event (snapped to 30 minutes), or click an event to edit it. Tasks due that day appear in a "Due" row, with tests highlighted.
+- `components/ui/EventEditor.tsx`: create/edit/delete with repeat rules, an end date, and live overlap warnings. Edits to a repeating event apply to the whole series.
 
 ## Dates
 

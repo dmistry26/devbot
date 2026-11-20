@@ -18,6 +18,7 @@ import {
 import { CommandBar } from "@/components/command/CommandBar";
 import { Toaster } from "@/components/ui/Toaster";
 import { TaskEditor } from "@/components/ui/TaskEditor";
+import { EventEditor } from "@/components/ui/EventEditor";
 import { useUI } from "@/components/ui/ui-store";
 
 const NAV = [
@@ -140,6 +141,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <CommandBar />
       <TaskEditor />
+      <EventEditor />
       <Toaster />
     </div>
   );

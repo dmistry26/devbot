@@ -1,8 +1,7 @@
 // Tool schemas the model uses to PROPOSE changes. Nothing is executed on the
 // server: tool calls come back to the browser as proposals the user confirms.
-// Every field is required (nullable when optional) so `strict: true` works.
-
-import type Anthropic from "@anthropic-ai/sdk";
+// Provider-neutral JSON Schema; every field is required (nullable when
+// optional). Each provider adapter converts these to its own format.
 
 const CATEGORY = ["academic", "project", "personal", "health", "social", "other"];
 const PRIORITY = ["urgent", "high", "normal", "low"];
@@ -15,21 +14,22 @@ const nenum = (values: string[], description: string) => ({
   description,
 });
 
-function tool(
-  name: string,
-  description: string,
-  properties: Record<string, unknown>,
-): Anthropic.Beta.Messages.BetaTool {
+export interface ToolDef {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, Record<string, unknown>>;
+    required: string[];
+    additionalProperties: false;
+  };
+}
+
+function tool(name: string, description: string, properties: Record<string, Record<string, unknown>>): ToolDef {
   return {
     name,
     description,
-    strict: true,
-    input_schema: {
-      type: "object",
-      properties,
-      required: Object.keys(properties),
-      additionalProperties: false,
-    },
+    parameters: { type: "object", properties, required: Object.keys(properties), additionalProperties: false },
   };
 }
 
@@ -37,7 +37,7 @@ const DATE = "YYYY-MM-DD, or null";
 const TIME = "HH:mm 24h, or null";
 const DT = "Local datetime YYYY-MM-DDTHH:mm";
 
-export const TOOLS: Anthropic.Beta.Messages.BetaTool[] = [
+export const TOOLS: ToolDef[] = [
   tool("create_task", "Propose a new task or deadline. Use kind='deadline' for tests, quizzes, due dates and applications; 'task' for things to do.", {
     title: s("Short, specific title, e.g. 'Review APUSH unit 5 notes'"),
     description: ns("Optional detail"),

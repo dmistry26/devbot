@@ -59,6 +59,18 @@ export type Action =
       end: string | null;
       location: string | null;
     }
+  | {
+      // Full edit from the event editor (not exposed to the AI).
+      type: "set_event";
+      event_id: string;
+      title: string;
+      start: string;
+      end: string;
+      location: string | null;
+      description: string | null;
+      category: Category;
+      recurrence: Recurrence | null;
+    }
   | { type: "delete_event"; event_id: string }
   | {
       type: "create_project";
@@ -118,6 +130,12 @@ export function validateAction(a: Action, data: Snapshot): string | null {
       if (a.end <= a.start) return "Event ends before it starts";
       if (!okCat(a.category)) return "Bad category";
       return null;
+    case "set_event":
+      if (!data.events.some((e) => e.id === a.event_id)) return "That event doesn't exist";
+      if (!str(a.title)) return "Event needs a title";
+      if (!DATETIME.test(a.start) || !DATETIME.test(a.end)) return "Bad time format";
+      if (a.end <= a.start) return "Event ends before it starts";
+      return okCat(a.category) ? null : "Bad category";
     case "update_event":
     case "delete_event":
       if (!data.events.some((e) => e.id === a.event_id)) return "That event doesn't exist";
@@ -241,6 +259,23 @@ export function applyActions(
               },
         );
         break;
+      case "set_event":
+        events = events.map((e) =>
+          e.id !== a.event_id
+            ? e
+            : {
+                ...e,
+                title: a.title.trim(),
+                start: a.start,
+                end: a.end,
+                location: a.location,
+                description: a.description,
+                category: a.category,
+                recurrence: a.recurrence,
+                updatedAt: nowIso,
+              },
+        );
+        break;
       case "delete_event":
         events = events.filter((e) => e.id !== a.event_id);
         break;
@@ -297,6 +332,8 @@ export function describeAction(a: Action, data: Snapshot): { verb: string; detai
       return { verb: a.task_id ? "Block time" : "Add event", detail: a.title };
     case "update_event":
       return { verb: "Move event", detail: ev(a.event_id) };
+    case "set_event":
+      return { verb: "Edit event", detail: a.title };
     case "delete_event":
       return { verb: "Remove event", detail: ev(a.event_id) };
     case "create_project":

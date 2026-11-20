@@ -52,12 +52,13 @@ function initialDraft(task: Task | null | undefined): Draft {
 
 export function TaskEditor() {
   const id = useUI((s) => s.editingTaskId);
+  const nonce = useUI((s) => s.editingTaskNonce);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && useUI.getState().editTask(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  return <AnimatePresence>{id && <EditorDialog key={id} id={id} />}</AnimatePresence>;
+  return <AnimatePresence>{id && <EditorDialog key={`${id}:${nonce}`} id={id} />}</AnimatePresence>;
 }
 
 function EditorDialog({ id }: { id: string }) {

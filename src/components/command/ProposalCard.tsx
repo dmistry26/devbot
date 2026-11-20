@@ -6,6 +6,8 @@ import { Check, CalendarPlus, FolderPlus, ListPlus, NotebookPen, PenLine, Trash2
 import { describeAction, isDestructive, validateAction, type Action } from "@/lib/actions";
 import { formatTime, relativeDay, timeOf } from "@/lib/dates";
 import { snapshotOf, useStore } from "@/lib/store";
+import { findConflicts } from "@/lib/calendar";
+import type { CalendarEvent } from "@/lib/types";
 import { useUI } from "@/components/ui/ui-store";
 import type { ProposalState } from "./chat-store";
 
@@ -17,6 +19,7 @@ const ICON: Record<Action["type"], typeof ListPlus> = {
   delete_task: Trash2,
   create_event: CalendarPlus,
   update_event: PenLine,
+  set_event: PenLine,
   delete_event: Trash2,
   create_project: FolderPlus,
   create_note: NotebookPen,
@@ -49,6 +52,22 @@ function subline(a: Action, now: Date): string | null {
     default:
       return null;
   }
+}
+
+/** Name of an existing event a proposed event/move would overlap, if any. */
+function clashFor(a: Action, events: CalendarEvent[]): string | null {
+  if (a.type === "create_event") {
+    if (a.task_id) return null; // focus blocks are planned around existing events
+    const c = findConflicts({ start: a.start, end: a.end, recurrence: a.recurrence }, events);
+    return c.length ? c.map((x) => x.event.title).slice(0, 2).join(", ") : null;
+  }
+  if (a.type === "update_event" && (a.start || a.end)) {
+    const ev = events.find((e) => e.id === a.event_id);
+    if (!ev) return null;
+    const c = findConflicts({ id: ev.id, start: a.start ?? ev.start, end: a.end ?? ev.end, recurrence: ev.recurrence }, events);
+    return c.length ? c.map((x) => x.event.title).slice(0, 2).join(", ") : null;
+  }
+  return null;
 }
 
 export function ProposalCard({
@@ -93,6 +112,7 @@ export function ProposalCard({
           const err = checked[i];
           const danger = isDestructive(a);
           const sub = subline(a, now);
+          const clash = !err ? clashFor(a, snap.events) : null;
           return (
             <li key={i}>
               <label className={`flex items-start gap-3 px-3.5 py-2.5 ${state === "pending" && !err ? "cursor-pointer hover:bg-white/[0.02]" : ""}`}>
@@ -111,6 +131,7 @@ export function ProposalCard({
                     <span className={danger ? "text-coral" : "text-ink-2"}>{d.verb}</span> {d.detail}
                   </span>
                   {sub && <span className="mt-0.5 block text-[11.5px] text-ink-3">{sub}</span>}
+                  {clash && <span className="mt-0.5 block text-[11.5px] text-amber">Overlaps {clash}</span>}
                   {err && <span className="mt-0.5 block text-[11.5px] text-coral">Can&apos;t apply: {err}</span>}
                 </span>
               </label>

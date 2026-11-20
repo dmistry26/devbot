@@ -63,7 +63,11 @@ function EventRow({ ev, now, past }: { ev: CalendarEvent; now: Date; past: boole
         <span className="relative mt-3 size-2 rounded-full border" style={{ borderColor: color, background: live ? color : "var(--bg)" }} />
       </div>
       <div
-        className="relative mb-2 min-w-0 flex-1 overflow-hidden rounded-xl border px-3.5 py-2.5 transition-colors"
+        role="button"
+        tabIndex={0}
+        onClick={() => useUI.getState().editEvent({ id: ev.id })}
+        onKeyDown={(e) => e.key === "Enter" && useUI.getState().editEvent({ id: ev.id })}
+        className="relative mb-2 min-w-0 flex-1 cursor-pointer overflow-hidden rounded-xl border px-3.5 py-2.5 transition-colors hover:border-line-strong"
         style={{
           borderColor: live ? `color-mix(in srgb, ${color} 45%, transparent)` : "var(--line)",
           background: `linear-gradient(90deg, color-mix(in srgb, ${color} ${live ? 14 : 7}%, transparent), transparent 70%)`,
@@ -84,7 +88,7 @@ function EventRow({ ev, now, past }: { ev: CalendarEvent; now: Date; past: boole
           <div className="flex shrink-0 items-center gap-1">
             {live && <span className="rounded-full px-2 py-0.5 text-[10.5px]" style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}>Now</span>}
             {!live && !past && startsIn <= 90 && <span className="tabular text-[10.5px] text-ink-2">{until(startsIn)}</span>}
-            <button onClick={remove} aria-label={`Remove ${ev.title}`} className="grid size-6 place-items-center rounded-md text-ink-4 opacity-0 transition-opacity hover:text-coral group-hover:opacity-100">
+            <button onClick={(e) => { e.stopPropagation(); remove(); }} aria-label={`Remove ${ev.title}`} className="grid size-6 place-items-center rounded-md text-ink-4 opacity-0 transition-opacity hover:text-coral group-hover:opacity-100">
               <X size={12} />
             </button>
           </div>
@@ -128,7 +132,7 @@ export function Schedule({ now }: { now: Date }) {
         label="Schedule"
         right={
           <button
-            onClick={() => openCommand("Add an event ")}
+            onClick={() => useUI.getState().editEvent({ id: "new" })}
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:bg-white/[0.04] hover:text-ink"
           >
             <Plus size={13} /> Event
