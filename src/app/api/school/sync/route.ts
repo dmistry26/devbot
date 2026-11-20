@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import { MoodleError, fetchFile, getContents, getCourses, getSiteInfo, moodleConfig, type MoodleModule } from "@/lib/school/moodle";
 import {
   extractHomework,
@@ -22,7 +23,9 @@ const addDays = (key: string, n: number) => {
 };
 
 /** GET: is the school connection configured, and does the key work? */
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = requireAuth(req);
+  if (denied) return denied;
   try {
     moodleConfig();
     const info = await getSiteInfo();
@@ -39,6 +42,8 @@ interface Body {
 
 /** POST: read every class's "Lesson Plans & Homework" book and return upcoming homework. */
 export async function POST(req: Request) {
+  const denied = requireAuth(req);
+  if (denied) return denied;
   let body: Body;
   try {
     body = (await req.json()) as Body;

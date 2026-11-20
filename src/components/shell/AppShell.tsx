@@ -79,6 +79,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const menu = menuPath === path;
   const setMenu = (fn: (m: boolean) => boolean) => setMenuPath(fn(menu) ? path : null);
 
+  // The unlock screen stands alone: no navigation, command bar or editors.
+  if (path === "/unlock") return <div className="relative z-10">{children}</div>;
+
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
   return (

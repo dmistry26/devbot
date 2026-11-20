@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import { TOOLS } from "@/lib/ai/tools";
 import { SYSTEM, buildContext, type AgentId } from "@/lib/ai/prompt";
 import { ProviderError, getProvider, normalizeInput } from "@/lib/ai/provider";
@@ -22,6 +23,8 @@ const json = (body: CommandResponse, status = 200) => Response.json(body, { stat
 const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
 
 export async function POST(req: Request) {
+  const denied = requireAuth(req);
+  if (denied) return denied;
   let body: Body;
   try {
     body = (await req.json()) as Body;

@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import { parseIcs, type IcsEvent } from "@/lib/ics";
 
 // Fetches and parses a subscribed .ics calendar on the server (browsers can't
@@ -39,6 +40,8 @@ function normalizeFeedUrl(raw: string): URL | null {
 const json = (body: FeedResponse, status = 200) => Response.json(body, { status });
 
 export async function POST(req: Request) {
+  const denied = requireAuth(req);
+  if (denied) return denied;
   let body: Body;
   try {
     body = (await req.json()) as Body;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useHydrated, useStore } from "@/lib/store";
 import { useChat } from "@/components/command/chat-store";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,6 +12,7 @@ import { useUI } from "@/components/ui/ui-store";
 
 export default function SettingsPage() {
   const hydrated = useHydrated();
+  const router = useRouter();
   const name = useStore((s) => s.profile.name);
   const setProfile = useStore((s) => s.setProfile);
   const counts = { t: useStore((s) => s.tasks.length), e: useStore((s) => s.events.length), p: useStore((s) => s.projects.length) };
@@ -61,6 +63,20 @@ export default function SettingsPage() {
           ) : (
             <button onClick={() => setConfirm(true)} className="mt-4 text-sm text-ink-3 hover:text-coral">Erase all data…</button>
           )}
+        </section>
+
+        <section className="panel p-6">
+          <h2 className="eyebrow mb-4">This device</h2>
+          <p className="text-sm leading-relaxed text-ink-2">When devbot is online, it&apos;s protected by your password. Lock this device to require the password again.</p>
+          <button
+            onClick={async () => {
+              await fetch("/api/unlock", { method: "DELETE" });
+              router.replace("/unlock");
+            }}
+            className="mt-4 rounded-xl border border-line px-4 py-2 text-sm text-ink-2 hover:text-ink"
+          >
+            Lock devbot on this device
+          </button>
         </section>
 
         <section className="panel p-6">
