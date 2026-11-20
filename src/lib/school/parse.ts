@@ -130,6 +130,45 @@ export interface ParsedLine extends ParsedItem {
   dueTime: string | null;
   /** Normalized key used to dedupe the same item across chapters. */
   key: string;
+  /**
+   * How trustworthy the date is, for picking between duplicates of the same test:
+   * 3 = listed in that day's activities, 2 = explicit date/weekday, 1 = "next class"/assumed, 0 = buried in an announcement.
+   */
+  rank?: number;
+}
+
+export type AssessmentType = "quiz" | "test" | "exam";
+
+export function assessmentType(s: string): AssessmentType | null {
+  if (/\b(midterms?|final exams?|exams?|finals)\b/i.test(s)) return "exam";
+  if (/\bquiz(?:zes)?\b/i.test(s)) return "quiz";
+  if (/\btests?\b/i.test(s)) return "test";
+  return null;
+}
+
+// Words that mention a test without it being one (mostly AP Stats vocabulary).
+const NOT_AN_ASSESSMENT = /\b(test statistics?|hypothes[ie]s tests?|significance tests?|[tz]-tests?|chi-square tests?|tests? (?:for|about) a|testing|test-taking|test prep(?:aration)?|tested)\b/i;
+// Lines about a test that aren't the test itself happening.
+const ABOUT_A_TEST = /\b(review(?:ing)?\s+(?:for|activities|the)|go(?:ing)? over|feedback|corrections?|returned?|retakes?|prepared? for|study(?:ing)?\s+for|stamp|reflections?|results|scores?|grades?|conferences?|make-?ups?|missed)\b/i;
+const MODIFIERS = new Set(["group", "pop", "audio", "vocab", "vocabulary", "reading", "unit", "chapter", "ch", "ch.", "module", "free", "response", "map", "lab", "practice", "final", "semester", "cumulative", "listening", "oral", "grammar"]);
+
+/** "Study for Momentum Quiz next class" → "Momentum Quiz"; "our Unit 4 test will…" → "Unit 4 test". */
+export function assessmentTitle(text: string, type: AssessmentType): string {
+  const words = text.replace(/[()"]/g, " ").split(/\s+/).filter(Boolean);
+  const nounRe = type === "quiz" ? /^quiz/i : type === "test" ? /^tests?\b/i : /^(midterms?|exams?|finals?)\b/i;
+  const idx = words.findIndex((w) => nounRe.test(w.replace(/[^a-z]/gi, "")));
+  if (idx < 0) return cap(type);
+  const keep: string[] = [words[idx].replace(/[^a-z]/gi, "")];
+  for (let i = idx - 1; i >= 0 && keep.length < 6; i--) {
+    const w = words[i].replace(/[,:;.!]+$/, "");
+    const bare = w.toLowerCase();
+    const qualifies = /^[A-Z]/.test(w) || /^\d+[A-Za-z]?$/.test(w) || MODIFIERS.has(bare);
+    const connector = (bare === "and" || bare === "&") && i > 0 && /^[A-Z]/.test(words[i - 1]);
+    if (!qualifies && !connector) break;
+    if (/^(students?|study|review|today|reminder|our|the|your|a|an|for|on|next|this|tomorrow)$/i.test(bare)) break;
+    keep.unshift(w);
+  }
+  return cap(keep.join(" "));
 }
 
 const NOUN = /\b((?:unit|chapter|ch\.?|module)\s*\d+\s+)?(group quiz|quiz|unit test|test|exam|midterm|final exam)\b/i;
@@ -209,9 +248,14 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
   }
   let dueDate: string | null = null;
   let stated = true; // false when we only assumed "due next class"
-  if (explicit.length) dueDate = explicit[day] ?? explicit[0];
-  else if (WEEKDAY_RE.test(text) && assigned) dueDate = nextWeekday(assigned, text.match(WEEKDAY_RE)![1]);
-  else if (/\bnext\s+next\s+class\b/i.test(text)) dueDate = meeting(chapters[chapterIndex + 2]);
+  let rank = 1;
+  if (explicit.length) {
+    dueDate = explicit[day] ?? explicit[0];
+    rank = announcement ? 0 : 2;
+  } else if (WEEKDAY_RE.test(text) && assigned) {
+    dueDate = nextWeekday(assigned, text.match(WEEKDAY_RE)![1]);
+    rank = 2;
+  } else if (/\bnext\s+next\s+class\b/i.test(text)) dueDate = meeting(chapters[chapterIndex + 2]);
   else if (/\b(next|following)\s+class\b/i.test(text)) dueDate = meeting(chapters[chapterIndex + 1]);
   else {
     stated = false;
@@ -223,12 +267,13 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
     ? `${pad((Number(tm[1]) % 12) + (tm[3].toLowerCase() === "pm" ? 12 : 0))}:${tm[2] ?? "00"}`
     : null;
 
+  const type = assessmentType(text);
   const deadline = (): ParsedLine | null => {
-    if (!noun) return null;
+    if (!noun || !type || NOT_AN_ASSESSMENT.test(text)) return null;
+    // "test for Unit 4" → "Unit 4 test"
     const unitAfter = !noun[1] ? text.slice((noun.index ?? 0) + noun[0].length).match(/^\s*(?:for|on)\s+((?:unit|chapter|ch\.?|module)\s*\d+)/i) : null;
-    const prefix = noun[1] ?? (unitAfter ? unitAfter[1] + " " : "");
-    const title = cap(`${prefix}${noun[2]}`.replace(/\s+/g, " ").trim().toLowerCase());
-    return { title, dueDate, dueTime: null, kind: "deadline", priority: "high", key: `deadline:${slug(title)}` };
+    const title = unitAfter ? cap(`${unitAfter[1]} ${type}`) : assessmentTitle(text, type);
+    return { title, dueDate, dueTime: null, kind: "deadline", priority: "high", key: `deadline:${type}`, rank };
   };
 
   if (announcement) {
@@ -254,7 +299,79 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
     const d = deadline();
     return d ? [d] : [];
   }
-  return [{ title, dueDate, dueTime, kind: noun ? "deadline" : "task", priority: noun ? "high" : "normal", key: `${noun ? "deadline" : "task"}:${slug(title)}` }];
+  if (noun && type && !NOT_AN_ASSESSMENT.test(text)) {
+    const d = deadline();
+    return d ? [{ ...d, dueTime }] : [];
+  }
+  return [{ title, dueDate, dueTime, kind: "task", priority: "normal", key: `task:${slug(title)}` }];
+}
+
+const WEEKDAY_LINE = /^(monday|tuesday|wednesday|thursday|friday)\s*[:\-–—]\s*(.+)$/i;
+
+function mondayOf(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return addDaysKey(key, -((dow + 6) % 7));
+}
+
+/**
+ * Find tests and quizzes anywhere in a lesson plan outside the Homework section:
+ *  - that day's activities: "- Unit 4 Test", "Unit 5: Group Quiz" → on that class day
+ *  - weekly plans: "Thursday - Circular Motion and Linear Momentum Test" → that weekday
+ *  - in-class notes: "Momentum Quiz next class", "Audio Quiz on Thursday, Nov 12"
+ * Skips mentions that aren't the test happening (review, feedback, "test statistic", …).
+ */
+export function extractAssessments(text: string, ctx: LineContext): ParsedLine[] {
+  const { chapterIndex, chapters, day, schoolYearStart } = ctx;
+  const meeting = (c: Chapter | undefined) => (c ? (c.dates[day] ?? c.dates[0] ?? null) : null);
+  const today = meeting(chapters[chapterIndex]);
+  if (!today) return [];
+  const hw = text.search(/^\s*(homework|hw)\b/im);
+  const body = hw >= 0 ? text.slice(0, hw) : text;
+  const out: ParsedLine[] = [];
+  let lastWeekday = -1;
+  let weekOffset = 0;
+
+  for (const raw of body.split("\n")) {
+    const line = raw.replace(/^[-•*◦▪·\s]+/, "").replace(/^today\s*:\s*/i, "").trim();
+    if (!line) continue;
+    const wd = line.match(WEEKDAY_LINE);
+    if (wd) {
+      // Weekly plan lines. A weekday earlier than the previous one means the list rolled into next week.
+      const idx = WEEKDAYS.indexOf(wd[1].toLowerCase());
+      if (idx <= lastWeekday) weekOffset += 7;
+      lastWeekday = idx;
+      const segment = wd[2].split(/\bHW\s*:/i)[0];
+      const type = assessmentType(segment);
+      if (!type || NOT_AN_ASSESSMENT.test(segment) || ABOUT_A_TEST.test(segment)) continue;
+      const date = addDaysKey(mondayOf(today), idx - 1 + weekOffset);
+      out.push({ title: assessmentTitle(segment, type), dueDate: date, dueTime: null, kind: "deadline", priority: "high", key: `deadline:${type}`, rank: 2 });
+      continue;
+    }
+    const type = assessmentType(line);
+    if (!type || NOT_AN_ASSESSMENT.test(line)) continue;
+    let date: string | null = null;
+    let rank = 1;
+    const explicit = parseDatePair(line, schoolYearStart);
+    if (explicit.length) {
+      date = explicit[day] ?? explicit[0];
+      rank = 2;
+    } else if (/\bnext\s+next\s+class\b/i.test(line)) date = meeting(chapters[chapterIndex + 2]);
+    else if (/\b(next|following)\s+class\b/i.test(line)) date = meeting(chapters[chapterIndex + 1]);
+    else if (WEEKDAY_RE.test(line)) {
+      date = nextWeekday(today, line.match(WEEKDAY_RE)![1]);
+      rank = 2;
+    } else {
+      // A short activity line that just names the test means it happens in this class.
+      const words = line.split(/\s+/).length;
+      if (words > 8 || /^(students?|objectives?|swbat|we will|you will)\b/i.test(line) || ABOUT_A_TEST.test(line)) continue;
+      date = today;
+      rank = 3;
+    }
+    if (!date || (rank < 3 && ABOUT_A_TEST.test(line.replace(/\b(next|following)\s+class\b.*$/i, "")) && !explicit.length)) continue;
+    out.push({ title: assessmentTitle(line, type), dueDate: date, dueTime: null, kind: "deadline", priority: "high", key: `deadline:${type}`, rank });
+  }
+  return out;
 }
 
 /** Split "Study for group quiz next class, test next next class" into separate items. */

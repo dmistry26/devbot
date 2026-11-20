@@ -9,7 +9,7 @@ yay no more opening moodle :>
 
 - **home screen** – greeting, what's due today, my schedule with a little "now" line, countdowns to tests, and a chief of staff that actually notices stuff ("apush test sunday and you haven't planned any studying")
 - **ai command bar** – hit `⌘K` (or just talk to it) and say whatever. "add robotics meeting thursday 5pm", "i finished my calc hw", or dump my whole brain into it. it suggests changes, i look them over, hit apply. anything can be undone
-- **school sync** – pulls homework straight out of every one of my class's lesson plans. figures out due dates (even "next next class"), turns tests into deadlines. 
+- **school sync** – pulls homework straight out of every one of my class's lesson plans. figures out due dates (even "next next class"), turns tests into deadlines. reads the whole lesson plan for test + quiz dates, not just the homework part. 
 - **academic** – one page per class: homework grouped by when it's due, test countdowns, a/b day, and my grade. grades come over from powerschool with one bookmark tap (no password stored anywhere)
 - **calendar** – month / week / day / agenda, repeating events, yells at me if i double-book. school events + a/b days come in from the school calendar automatically
 - **themes** – dark, light, or whatever my mac is doing. five colorways bc why not

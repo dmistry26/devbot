@@ -107,6 +107,7 @@ export interface Insight {
   tone: InsightTone;
   text: string;
   prompt?: string; // what to send the AI if you tap it
+  href?: string; // or a link to open instead
 }
 
 export function computeInsights(data: Snapshot, now: Date): Insight[] {

@@ -60,7 +60,11 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(url, { cache: "no-store", redirect: "follow", signal: AbortSignal.timeout(15_000), headers: { Accept: "text/calendar, */*" } });
     if (!res.ok) {
-      return json({ ok: false, error: res.status === 404 ? "Calendar not found — is it public?" : `The calendar server returned ${res.status}.` }, 502);
+      const error =
+        res.status === 404 ? "Calendar not found. Is it public?"
+        : res.status === 429 ? "The calendar server is busy (too many requests). devbot will try again later."
+        : `The calendar server returned ${res.status}.`;
+      return json({ ok: false, error }, 502);
     }
     const len = Number(res.headers.get("content-length") ?? 0);
     if (len > MAX_BYTES) return json({ ok: false, error: "That calendar is too large." }, 413);

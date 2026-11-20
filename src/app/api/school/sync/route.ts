@@ -5,6 +5,8 @@ import {
   htmlToText,
   parseDatePair,
   parseLine,
+  extractAssessments,
+  type ParsedLine,
   schoolYearStartFrom,
   shortCourseName,
   splitItem,
@@ -73,7 +75,7 @@ export async function POST(req: Request) {
         courses.push(entry);
         const day: DayIndex = body.days?.[String(course.id)] === 1 ? 1 : 0;
 
-        const courseItems: (SchoolItem & { key: string })[] = [];
+        const courseItems: Ranked[] = [];
         for (const book of books) {
           const found = await readBook(book, course.id, name, day, today, windowStart, windowEnd);
           courseItems.push(...found.items);
@@ -115,7 +117,7 @@ async function readBook(
     }))
     .filter((c) => c.dates.length > 0);
 
-  const items: (SchoolItem & { key: string })[] = [];
+  const items: Ranked[] = [];
   const meetingDate = (c: Chapter) => c.dates[day] ?? c.dates[0];
   const inWindow = chapters
     .map((c, i) => ({ c, i }))
@@ -127,29 +129,31 @@ async function readBook(
 
   await Promise.all(
     inWindow.map(async ({ c, i }) => {
-      const html = await fetchFile(c.fileurl);
-      for (const line of extractHomework(htmlToText(html))) {
-        for (const part of splitItem(line)) {
-          for (const r of parseLine(part, { chapterIndex: i, chapters, day, schoolYearStart: syStart })) {
-            // Skip work that was already due before today, and undated items from old meetings.
-            if (r.dueDate && r.dueDate < today) continue;
-            if (!r.dueDate && meetingDate(c) < addDays(today, -1)) continue;
-            items.push({
-              key: r.key,
-              externalId: "",
-              courseId,
-              courseName,
-              title: r.title,
-              dueDate: r.dueDate,
-              dueTime: r.dueTime,
-              assignedDate: meetingDate(c),
-              kind: r.kind,
-              priority: r.priority,
-              sourceUrl: `${base}/mod/book/view.php?id=${book.id}&chapterid=${c.id}`,
-            });
-          }
-        }
-      }
+      const text = htmlToText(await fetchFile(c.fileurl));
+      const ctx = { chapterIndex: i, chapters, day, schoolYearStart: syStart };
+      const add = (r: ParsedLine) => {
+        // Skip work that was already due before today, and undated items from old meetings.
+        if (r.dueDate && r.dueDate < today) return;
+        if (!r.dueDate && meetingDate(c) < addDays(today, -1)) return;
+        if (r.kind === "deadline" && !r.dueDate) return; // a test without a date isn't useful
+        items.push({
+          key: r.key,
+          rank: r.rank ?? 1,
+          externalId: "",
+          courseId,
+          courseName,
+          title: r.title,
+          dueDate: r.dueDate,
+          dueTime: r.dueTime,
+          assignedDate: meetingDate(c),
+          kind: r.kind,
+          priority: r.priority,
+          sourceUrl: `${base}/mod/book/view.php?id=${book.id}&chapterid=${c.id}`,
+        });
+      };
+      // Homework lines, then tests/quizzes mentioned anywhere else in the lesson plan.
+      for (const line of extractHomework(text)) for (const part of splitItem(line)) parseLine(part, ctx).forEach(add);
+      extractAssessments(text, ctx).forEach(add);
     }),
   );
   return { items, sampleDates: recent?.dates ?? [] };
@@ -168,16 +172,27 @@ function weekKey(date: string | null) {
  * Teachers often repeat the same homework on consecutive class days. Keep one
  * item per course + title: the one from the most recent lesson plan.
  */
-function dedupe(list: (SchoolItem & { key: string })[]): SchoolItem[] {
-  const best = new Map<string, SchoolItem & { key: string }>();
+type Ranked = SchoolItem & { key: string; rank: number };
+
+/**
+ * The same homework repeats across class days, and the same test is often
+ * mentioned in several places (homework, activities, announcements). Keep one
+ * per course: homework by title, tests by type + week. For tests, prefer the
+ * most trustworthy date (that day's activities > explicit date > "next class" >
+ * announcement), then the more specific name, then the newest lesson plan.
+ */
+function dedupe(list: Ranked[]): SchoolItem[] {
+  const best = new Map<string, Ranked>();
+  const better = (a: Ranked, b: Ranked) =>
+    a.rank !== b.rank ? a.rank > b.rank : a.title.length !== b.title.length ? a.title.length > b.title.length : (a.assignedDate ?? "") > (b.assignedDate ?? "");
   for (const it of list) {
     const k = it.kind === "deadline" ? `${it.key}:${weekKey(it.dueDate)}` : it.key;
     const prev = best.get(k);
-    if (!prev || (it.assignedDate ?? "") > (prev.assignedDate ?? "")) best.set(k, it);
+    if (!prev || (it.kind === "deadline" ? better(it, prev) : (it.assignedDate ?? "") > (prev.assignedDate ?? ""))) best.set(k, it);
   }
   return [...best.entries()].map(([k, it]) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { key, ...rest } = it;
+    const { key, rank, ...rest } = it;
     return { ...rest, externalId: `vcs:${it.courseId}:${k}` };
   });
 }

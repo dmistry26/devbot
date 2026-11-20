@@ -24,6 +24,46 @@ function planDay(item: SchoolItem, today: string): string | null {
   return key < today ? today : key;
 }
 
+const testType = (s: string) => (/\b(midterm|final|exam)/i.test(s) ? "exam" : /\bquiz/i.test(s) ? "quiz" : /\btest/i.test(s) ? "test" : null);
+const dayDiff = (a: string, b: string) => {
+  const [y1, m1, d1] = a.split("-").map(Number);
+  const [y2, m2, d2] = b.split("-").map(Number);
+  return Math.abs(Date.UTC(y1, m1 - 1, d1) - Date.UTC(y2, m2 - 1, d2)) / 86_400_000;
+};
+
+/**
+ * A test imported earlier may have a different id (ids changed as parsing got
+ * smarter, or the date moved a day). Treat the same class + kind of test within
+ * 3 days as the same test, so it updates instead of duplicating.
+ */
+function findSameTest(tasks: Task[], item: SchoolItem, claimed: Set<string>): Task | undefined {
+  if (item.kind !== "deadline" || !item.dueDate) return undefined;
+  const type = testType(item.title);
+  return tasks.find(
+    (t) =>
+      !claimed.has(t.id) &&
+      t.source === "school" &&
+      t.kind === "deadline" &&
+      t.context === item.courseName &&
+      t.dueDate !== null &&
+      testType(t.title) === type &&
+      dayDiff(t.dueDate, item.dueDate!) <= 3,
+  );
+}
+
+/** Was this test deleted before, possibly under an older id for the same class/week/type? */
+function wasDismissed(item: SchoolItem, dismissed: Set<string>): boolean {
+  if (dismissed.has(item.externalId)) return true;
+  if (item.kind !== "deadline") return false;
+  const m = item.externalId.match(/^(vcs:\d+:deadline:)([^:]+):(\w+)$/);
+  if (!m) return false;
+  const [, prefix, type, week] = m;
+  for (const id of dismissed) {
+    if (id.startsWith(prefix) && id.endsWith(`:${week}`) && id.slice(prefix.length).includes(type)) return true;
+  }
+  return false;
+}
+
 export function mergeSchoolItems(
   tasks: Task[],
   items: SchoolItem[],
@@ -36,17 +76,31 @@ export function mergeSchoolItems(
   let updated = 0;
   const changes = new Map<string, Task>();
   const created: Task[] = [];
+  const claimed = new Set<string>();
 
   for (const item of items) {
-    if (dismissed.has(item.externalId)) continue;
-    const title = schoolTitle(item);
-    const existing = byExt.get(item.externalId);
+    if (wasDismissed(item, dismissed)) continue;
+    const title = schoolTitle(item) + (item.note ? " (check date)" : "");
+    let existing = byExt.get(item.externalId);
+    if (!existing) {
+      const same = findSameTest(tasks, item, claimed);
+      if (same && same.externalId && dismissed.has(same.externalId)) continue;
+      if (same) {
+        existing = same;
+        // Adopt the new id so future syncs match directly.
+        if (same.externalId !== item.externalId) {
+          changes.set(same.id, { ...(changes.get(same.id) ?? same), externalId: item.externalId });
+        }
+      }
+    }
     if (existing) {
+      claimed.add(existing.id);
       // Don't touch finished work or anything you've edited by hand since import.
       if (existing.status === "done" || existing.updatedAt > existing.createdAt) continue;
+      const base = changes.get(existing.id) ?? existing;
       if (existing.title !== title || existing.context !== item.courseName || existing.dueDate !== item.dueDate || (existing.dueTime ?? null) !== (item.dueTime ?? null)) {
         changes.set(existing.id, {
-          ...existing,
+          ...base,
           title,
           dueDate: item.dueDate,
           dueTime: item.dueTime ?? null,
@@ -62,7 +116,7 @@ export function mergeSchoolItems(
     created.push({
       id: crypto.randomUUID(),
       title,
-      description: `From ${item.courseName} lesson plan${item.assignedDate ? ` (${item.assignedDate})` : ""}`,
+      description: `From ${item.courseName} lesson plan${item.assignedDate ? ` (${item.assignedDate})` : ""}${item.note ? `. ${item.note}` : ""}`,
       status: "todo",
       priority: item.priority,
       kind: item.kind,

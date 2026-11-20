@@ -9,7 +9,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { useSyncExternalStore } from "react";
 import { applyActions, type Action } from "./actions";
 import type { CalendarEvent, CalendarSubscription, GradesSnapshot, HistoryEntry, Profile, Snapshot } from "./types";
-import { toDateKey, toDateTime } from "./dates";
+import { allDayOn, toDateKey, toDateTime } from "./dates";
 import { mergeSchoolItems } from "./school/merge";
 import type { SchoolCourse, SchoolItem } from "./school/types";
 
@@ -126,7 +126,15 @@ export const useStore = create<State>()(
         const s = get();
         const now = new Date();
         const nowIso = toDateTime(now);
-        const r = mergeSchoolItems(s.tasks, items, new Set(s.school.dismissed), nowIso, toDateKey(now));
+        // Flag tests that land on a no-school day from the subscribed school calendar.
+        const noSchool = (day: string) =>
+          allDayOn(s.events, day).some((e) => /no school|holiday|break|vacation|thanksgiving|no classes/i.test(e.title));
+        const checked = items.map((it) =>
+          it.kind === "deadline" && it.dueDate && noSchool(it.dueDate)
+            ? { ...it, note: "The lesson plan's date falls on a no-school day. Check the real date with your teacher." }
+            : it,
+        );
+        const r = mergeSchoolItems(s.tasks, checked, new Set(s.school.dismissed), nowIso, toDateKey(now));
         const school = { ...s.school, courses, lastSync: now.toISOString() };
         if (!r.added && !r.updated) {
           set({ school });

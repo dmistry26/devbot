@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { computeInsights, type InsightTone } from "@/lib/derive";
+import { computeInsights, type Insight, type InsightTone } from "@/lib/derive";
 import { useUI } from "@/components/ui/ui-store";
 
 const TONE: Record<InsightTone, string> = {
@@ -15,7 +15,18 @@ const TONE: Record<InsightTone, string> = {
 export function Insights({ now }: { now: Date }) {
   const data = useStore();
   const openCommand = useUI((s) => s.openCommand);
-  const insights = computeInsights(data, now);
+  const grades = useStore((s) => s.grades);
+  const insights: Insight[] = computeInsights(data, now);
+  // PowerSchool can't push grades, so nudge when they're more than a week old.
+  const gradeAgeDays = grades ? (now.getTime() - new Date(grades.importedAt).getTime()) / 86_400_000 : null;
+  if (gradeAgeDays !== null && gradeAgeDays > 7) {
+    insights.unshift({
+      id: "grades-stale",
+      tone: "info",
+      text: `Your grades were last updated ${Math.floor(gradeAgeDays)} days ago. Open PowerSchool and tap "Send to devbot" to refresh them.`,
+      href: "https://vcsnet.powerschool.com/guardian/home.html",
+    });
+  }
 
   return (
     <section className="panel ai-ring overflow-hidden p-5 sm:p-6">
@@ -40,12 +51,12 @@ export function Insights({ now }: { now: Date }) {
               transition={{ delay: 0.1 + i * 0.06 }}
             >
               <button
-                onClick={() => ins.prompt && openCommand(ins.prompt, true)}
+                onClick={() => (ins.href ? window.open(ins.href, "_blank", "noopener") : ins.prompt && openCommand(ins.prompt, true))}
                 className="group flex w-full items-start gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-ink/[0.03]"
               >
                 <span className="mt-[7px] size-1.5 shrink-0 rounded-full" style={{ background: TONE[ins.tone], boxShadow: `0 0 8px ${TONE[ins.tone]}` }} />
                 <span className="flex-1 text-[13.5px] leading-relaxed text-ink-2 group-hover:text-ink">{ins.text}</span>
-                {ins.prompt && <ArrowUpRight size={14} className="mt-1 shrink-0 text-ink-4 transition-colors group-hover:text-ice" />}
+                {(ins.prompt || ins.href) && <ArrowUpRight size={14} className="mt-1 shrink-0 text-ink-4 transition-colors group-hover:text-ice" />}
               </button>
             </motion.li>
           ))}

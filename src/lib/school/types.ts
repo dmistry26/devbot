@@ -18,6 +18,8 @@ export interface SchoolItem {
   kind: "task" | "deadline";
   priority: "high" | "normal";
   sourceUrl: string;
+  /** Set when the date looks wrong, e.g. it falls on a no-school day. */
+  note?: string;
 }
 
 export interface SchoolSyncResponse {
