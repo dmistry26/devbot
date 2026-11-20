@@ -25,7 +25,8 @@ export default function UnlockPage() {
       if (data.ok) {
         const next = new URLSearchParams(window.location.search).get("next");
         // Only allow same-site paths.
-        window.location.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+        // Keep the #fragment (the grades bookmark sends its data there).
+        window.location.replace((next && next.startsWith("/") && !next.startsWith("//") ? next : "/") + window.location.hash);
         return;
       }
       setError(data.error ?? "Couldn't unlock.");

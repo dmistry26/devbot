@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SchoolSettings } from "@/components/settings/SchoolSettings";
 import { CalendarSettings } from "@/components/settings/CalendarSettings";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
+import { GradesSettings } from "@/components/settings/GradesSettings";
 import { useUI } from "@/components/ui/ui-store";
 
 export default function SettingsPage() {
@@ -46,6 +47,8 @@ export default function SettingsPage() {
         <AppearanceSettings />
 
         <SchoolSettings />
+
+        <GradesSettings />
 
         <CalendarSettings />
 

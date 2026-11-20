@@ -8,7 +8,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useSyncExternalStore } from "react";
 import { applyActions, type Action } from "./actions";
-import type { CalendarEvent, CalendarSubscription, HistoryEntry, Profile, Snapshot } from "./types";
+import type { CalendarEvent, CalendarSubscription, GradesSnapshot, HistoryEntry, Profile, Snapshot } from "./types";
 import { toDateKey, toDateTime } from "./dates";
 import { mergeSchoolItems } from "./school/merge";
 import type { SchoolCourse, SchoolItem } from "./school/types";
@@ -34,6 +34,8 @@ interface State extends Snapshot {
   school: SchoolState;
   setSchool: (p: Partial<SchoolState>) => void;
   importSchool: (items: SchoolItem[], courses: SchoolCourse[]) => { added: number; updated: number };
+  grades: GradesSnapshot | null;
+  setGrades: (g: GradesSnapshot | null) => void;
   calendars: CalendarSubscription[];
   addCalendar: (c: Omit<CalendarSubscription, "id" | "lastSync" | "error" | "enabled">) => string;
   updateCalendar: (id: string, p: Partial<CalendarSubscription>) => void;
@@ -93,6 +95,8 @@ export const useStore = create<State>()(
       },
       setProfile: (p) => set({ profile: { ...get().profile, ...p } }),
       school: { days: {}, courses: [], lastSync: null, dismissed: [] },
+      grades: null,
+      setGrades: (grades) => set({ grades }),
       calendars: [],
       addCalendar: (c) => {
         const id = `cal-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -154,8 +158,9 @@ export const useStore = create<State>()(
       name: "devbot.v1",
       storage: createJSONStorage(() => localStorage),
       version: 1,
-      partialize: ({ tasks, events, projects, notes, profile, history, school, calendars }) => ({
+      partialize: ({ tasks, events, projects, notes, profile, history, school, calendars, grades }) => ({
         calendars,
+        grades,
         tasks,
         events,
         projects,

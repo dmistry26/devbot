@@ -103,8 +103,6 @@ export interface Note {
 
 export interface Profile {
   name: string;
-  /** Link to the student's grade portal (e.g. PowerSchool), opened from the Academic page. */
-  gradesUrl?: string;
 }
 
 export interface Snapshot {
@@ -139,3 +137,27 @@ export const CATEGORIES: Category[] = [
   "other",
 ];
 export const PRIORITIES: Priority[] = ["urgent", "high", "normal", "low"];
+
+/** One term's grade for a class, e.g. { term: "Q2", letter: "A-", percent: 91.2 }. */
+export interface GradeEntry {
+  term: string;
+  letter: string | null;
+  percent: number | null;
+}
+
+export interface ClassGrades {
+  name: string; // as shown in PowerSchool
+  teacher: string | null;
+  grades: GradeEntry[];
+  /** The most recent term that has a grade. */
+  current: GradeEntry | null;
+  /** Matched learn.vcs.net course id, if any. */
+  courseId: number | null;
+}
+
+export interface GradesSnapshot {
+  source: "powerschool";
+  importedAt: string; // ISO
+  terms: string[];
+  classes: ClassGrades[];
+}

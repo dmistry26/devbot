@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings scripts/test-school-parse.mts && node --no-warnings scripts/test-ics.mts"
+    "test": "node --no-warnings scripts/test-school-parse.mts && node --no-warnings scripts/test-ics.mts && node --no-warnings scripts/test-grades.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.11.0",

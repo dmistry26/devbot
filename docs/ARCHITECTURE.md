@@ -40,7 +40,16 @@ Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript �
 
 `components/academic/AcademicView.tsx` lists every class that has a "Lesson Plans & Homework" section, using `school.courses` from the last sync. Tasks belong to a class through their external id (`vcs:<courseId>:…`), or through `context` for hand-made tasks. Each class shows tests and quizzes as countdowns, homework grouped as overdue / today / tomorrow / later / no date, and recently completed work. The A/B label only appears once it's chosen in Settings → School.
 
-Grades come from PowerSchool, which offers no student API, and the Moodle gradebook isn't used at VCS (`gradereport_overview` is empty and item grades return `nopermissiontoviewgrades`). The page therefore links out using a PowerSchool URL saved in `profile.gradesUrl`, rather than scraping with a password.
+### Grades (PowerSchool bookmark)
+
+VCS's Moodle gradebook isn't used (`gradereport_overview` is empty and item grades return `nopermissiontoviewgrades`). Grades live in PowerSchool (vcsnet.powerschool.com), which has no student API and sits behind Imperva bot protection, so devbot doesn't sign in for you or store your password.
+
+Instead there's a bookmarklet (`lib/grades/bookmarklet.ts`) that runs on PowerSchool's Grades and Attendance page in your own signed-in browser:
+1. It reads `table.linkDescList.grid`: header colspans are expanded so columns line up, the course name comes before the first `<br>`, the teacher comes from the "Details about …" link, and each term cell like `A<br>92` becomes a letter and a percent.
+2. It base64url-encodes `{ v: 1, terms, classes }` into the fragment of `<devbot>/import#grades=…`. The fragment never reaches a server, and unlock keeps it through the password redirect.
+3. `/import` validates and caps the payload (`lib/grades/import.ts`), matches PowerSchool names to learn.vcs.net classes by word overlap with synonyms ("Lang and Comp" ≈ "Language Composition"), saves a `GradesSnapshot`, and strips the fragment from history.
+
+Tested in `scripts/test-grades.mts` with VCS's real class names.
 
 ## Calendar subscriptions
 

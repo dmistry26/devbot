@@ -7,7 +7,8 @@ import { ArrowUpRight, ChevronDown, GraduationCap, RefreshCw, Sparkles } from "l
 import { useNow, useStore } from "@/lib/store";
 import { syncSchool } from "@/lib/school/client";
 import { addDays, daysUntil, format, parseDateKey, relativeDay, toDateKey } from "@/lib/dates";
-import type { Task } from "@/lib/types";
+import type { ClassGrades, GradeEntry, Task } from "@/lib/types";
+import { matchCourse } from "@/lib/grades/import";
 import type { SchoolCourse } from "@/lib/school/types";
 import { TaskRow } from "@/components/home/Priorities";
 import { Skeleton } from "@/components/ui/primitives";
@@ -15,6 +16,10 @@ import { useUI } from "@/components/ui/ui-store";
 import { useChat } from "@/components/command/chat-store";
 
 const MOODLE = "https://learn.vcs.net";
+const POWERSCHOOL = "https://vcsnet.powerschool.com/guardian/home.html";
+
+const gradeText = (g: GradeEntry | null) =>
+  g ? [g.letter, g.percent !== null ? `${g.percent}%` : null].filter(Boolean).join(" ") || "–" : "–";
 
 /** School tasks carry their Moodle course id in the external id: vcs:<courseId>:... */
 function courseIdOf(t: Task): number | null {
@@ -46,6 +51,7 @@ interface ClassData {
   next: Task | null;
   overdue: number;
   sortKey: string;
+  grade: ClassGrades | null;
 }
 
 export function AcademicView() {
@@ -57,7 +63,7 @@ export function AcademicView() {
 function Academic({ now }: { now: Date }) {
   const tasks = useStore((s) => s.tasks);
   const school = useStore((s) => s.school);
-  const gradesUrl = useStore((s) => s.profile.gradesUrl ?? "");
+  const grades = useStore((s) => s.grades);
   const toast = useUI((s) => s.toast);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
@@ -84,10 +90,14 @@ function Academic({ now }: { now: Date }) {
         const overdue = sorted.filter((t) => t.dueDate && t.dueDate < today).length;
         // "next" is the first thing still ahead (today or later); overdue work is counted separately.
         const next = sorted.find((t) => !t.dueDate || t.dueDate >= today) ?? null;
-        return { course, day, tests, homework, done, next, overdue, sortKey: sorted[0]?.dueDate ?? "9999" };
+        // Match at render time too, in case grades were imported before classes synced.
+        const grade = grades?.classes.find((g) => (g.courseId ?? matchCourse(g.name, [{ id: course.id, name: course.name }])) === course.id) ?? null;
+        return { course, day, tests, homework, done, next, overdue, sortKey: sorted[0]?.dueDate ?? "9999", grade };
       })
       .sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.course.name.localeCompare(b.course.name));
-  }, [school.courses, school.days, tasks, recent, today]);
+  }, [school.courses, school.days, tasks, recent, today, grades]);
+  const matchedNames = new Set(classes.map((c) => c.grade?.name).filter(Boolean));
+  const otherGrades = (grades?.classes ?? []).filter((g) => !matchedNames.has(g.name));
 
   const active = classes.find((c) => c.course.id === selected) ?? classes[0];
   const dueThisWeek = classes.reduce((n, c) => n + c.homework.filter((t) => t.dueDate && t.dueDate <= weekEnd).length, 0);
@@ -121,7 +131,15 @@ function Academic({ now }: { now: Date }) {
           <button onClick={sync} disabled={busy} className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-1.5 text-xs text-ink-2 hover:text-ink disabled:opacity-50">
             <RefreshCw size={12} className={busy ? "animate-spin" : ""} /> {busy ? "Syncing…" : "Sync now"}
           </button>
-          <GradesButton url={gradesUrl} />
+          {grades ? (
+            <a href={POWERSCHOOL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-1.5 text-xs text-ink-2 hover:text-ink">
+              Grades {ago(grades.importedAt)} · PowerSchool <ArrowUpRight size={12} />
+            </a>
+          ) : (
+            <Link href="/settings#grades" className="rounded-xl border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-3 hover:text-ink">
+              + Set up grades
+            </Link>
+          )}
         </div>
       </header>
 
@@ -153,7 +171,12 @@ function Academic({ now }: { now: Date }) {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-[15px] leading-snug text-ink">{c.course.name}</span>
-                      {c.day && <span className="shrink-0 rounded-full border border-line px-2 py-0.5 font-mono text-[10px] text-ink-3">{c.day}</span>}
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {c.day && <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[10px] text-ink-3">{c.day}</span>}
+                        {c.grade?.current && (
+                          <span className="rounded-lg bg-ink/[0.05] px-2 py-0.5 font-mono text-[12px] tabular text-ink">{gradeText(c.grade.current)}</span>
+                        )}
+                      </span>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
                       <span className="text-ink-3">{c.homework.length} homework</span>
@@ -166,63 +189,28 @@ function Academic({ now }: { now: Date }) {
                 </li>
               );
             })}
+            {otherGrades.length > 0 && (
+              <li className="px-2 pt-2">
+                <div className="eyebrow mb-1.5 !text-[9.5px]">Also in PowerSchool</div>
+                {otherGrades.map((g) => (
+                  <div key={g.name} className="flex items-center justify-between py-1 text-[13px] text-ink-3">
+                    <span className="truncate">{g.name}</span>
+                    <span className="font-mono tabular">{gradeText(g.current)}</span>
+                  </div>
+                ))}
+              </li>
+            )}
           </ul>
 
-          {active && <ClassDetail key={active.course.id} data={active} now={now} gradesUrl={gradesUrl} />}
+          {active && <ClassDetail key={active.course.id} data={active} now={now} importedAt={grades?.importedAt ?? null} />}
         </div>
       )}
     </div>
   );
 }
 
-function GradesButton({ url, compact }: { url: string; compact?: boolean }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(url);
-  const setProfile = useStore((s) => s.setProfile);
-  if (editing || !url) {
-    if (!editing && compact) return null;
-    return editing ? (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const v = draft.trim();
-          if (v && !/^https:\/\//i.test(v)) return;
-          setProfile({ gradesUrl: v });
-          setEditing(false);
-        }}
-        className="flex items-center gap-1.5"
-      >
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="https://… your PowerSchool link"
-          className="w-64 rounded-xl border border-line bg-ink/[0.025] px-3 py-1.5 text-xs text-ink outline-none placeholder:text-ink-4 focus:border-line-strong"
-        />
-        <button className="rounded-xl border border-line-strong px-3 py-1.5 text-xs text-ink-2 hover:text-ink">Save</button>
-      </form>
-    ) : (
-      <button onClick={() => setEditing(true)} className="rounded-xl border border-dashed border-line-strong px-3 py-1.5 text-xs text-ink-3 hover:text-ink">
-        + Add PowerSchool link
-      </button>
-    );
-  }
-  return (
-    <span className="flex items-center gap-1">
-      <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-xl bg-gold px-3 py-1.5 text-xs font-medium text-on-accent">
-        Grades in PowerSchool <ArrowUpRight size={12} />
-      </a>
-      {!compact && (
-        <button onClick={() => { setDraft(url); setEditing(true); }} className="px-1.5 text-[11px] text-ink-4 hover:text-ink-2">
-          edit
-        </button>
-      )}
-    </span>
-  );
-}
-
-function ClassDetail({ data, now, gradesUrl }: { data: ClassData; now: Date; gradesUrl: string }) {
-  const { course, day, tests, homework, done } = data;
+function ClassDetail({ data, now, importedAt }: { data: ClassData; now: Date; importedAt: string | null }) {
+  const { course, day, tests, homework, done, grade } = data;
   const [showDone, setShowDone] = useState(false);
   const today = toDateKey(now);
   const tomorrow = toDateKey(addDays(now, 1));
@@ -256,9 +244,36 @@ function ClassDetail({ data, now, gradesUrl }: { data: ClassData; now: Date; gra
           <a href={`${MOODLE}/course/view.php?id=${course.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-xl border border-line px-3 py-1.5 text-xs text-ink-3 hover:text-ink">
             learn.vcs.net <ArrowUpRight size={12} />
           </a>
-          <GradesButton url={gradesUrl} compact />
+          <a href={POWERSCHOOL} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-xl border border-line px-3 py-1.5 text-xs text-ink-3 hover:text-ink">
+            PowerSchool <ArrowUpRight size={12} />
+          </a>
         </div>
       </div>
+
+      {grade && (
+        <div className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-2xl border border-line bg-ink/[0.02] px-4 py-3.5">
+          <div>
+            <div className="eyebrow mb-1">Grade{grade.current ? ` · ${grade.current.term}` : ""}</div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-[40px] leading-none text-gold">{grade.current?.letter ?? "–"}</span>
+              {grade.current?.percent !== null && grade.current?.percent !== undefined && (
+                <span className="font-mono text-lg tabular text-ink-2">{grade.current.percent}%</span>
+              )}
+            </div>
+          </div>
+          {grade.grades.length > 1 && (
+            <div className="flex gap-4">
+              {grade.grades.map((g) => (
+                <div key={g.term} className="text-center">
+                  <div className="font-mono text-[10px] text-ink-4">{g.term}</div>
+                  <div className="font-mono text-sm tabular text-ink-2">{gradeText(g)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {importedAt && <div className="ml-auto text-[11.5px] text-ink-4">from PowerSchool · {ago(importedAt)}</div>}
+        </div>
+      )}
 
       <div className="mb-6">
         <h3 className="eyebrow mb-2">Tests &amp; quizzes</h3>
@@ -327,9 +342,10 @@ function ClassDetail({ data, now, gradesUrl }: { data: ClassData; now: Date; gra
         </div>
       )}
 
-      {!gradesUrl && (
+      {!importedAt && (
         <p className="mt-6 text-[12px] text-ink-4">
-          Grades live in PowerSchool, which doesn&apos;t share them with other apps. Add your PowerSchool link at the top of this page for a one-tap shortcut.
+          Want grades here? Set up the &ldquo;Send to devbot&rdquo; bookmark in{" "}
+          <Link href="/settings#grades" className="underline underline-offset-2 hover:text-ink-2">Settings</Link>, then tap it on PowerSchool.
         </p>
       )}
     </motion.section>
