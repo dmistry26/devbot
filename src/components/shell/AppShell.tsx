@@ -112,13 +112,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Mark size={20} />
           <span className="font-display text-lg italic text-ink">devbot</span>
         </Link>
-        <button
-          onClick={() => setMenu((m) => !m)}
-          aria-label="Menu"
-          className="glass grid size-9 place-items-center rounded-xl text-ink-2"
-        >
-          {menu ? <X size={17} /> : <Menu size={17} />}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <div className="glass rounded-xl [&>button]:size-9">
+            <ThemeToggle />
+          </div>
+          <Link href="/settings" aria-label="Settings" className="glass grid size-9 place-items-center rounded-xl text-ink-2">
+            <Settings size={16} strokeWidth={1.7} />
+          </Link>
+          <button
+            onClick={() => setMenu((m) => !m)}
+            aria-label="Menu"
+            className="glass grid size-9 place-items-center rounded-xl text-ink-2"
+          >
+            {menu ? <X size={17} /> : <Menu size={17} />}
+          </button>
+        </div>
       </div>
       <AnimatePresence>
         {menu && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Repeat, Trash2, TriangleAlert, X } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -120,7 +121,12 @@ function FeedEventDialog({ ev }: { ev: CalendarEvent }) {
         <p className="mt-2 text-sm text-ink-2">{when}</p>
         {ev.location && <p className="mt-1 text-sm text-ink-3">{ev.location}</p>}
         {ev.description && <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-ink-3">{ev.description}</p>}
-        <p className="mt-5 text-[12px] text-ink-4">This comes from a subscribed calendar, so it can&apos;t be edited here. Manage calendars in Settings.</p>
+        <p className="mt-5 text-[12px] text-ink-4">This comes from a subscribed calendar, so it can&apos;t be edited here.{" "}
+          <Link href="/settings" onClick={close} className="text-ink-3 underline underline-offset-2 hover:text-ink">
+            Manage calendars in Settings
+          </Link>
+          .
+        </p>
       </motion.div>
     </motion.div>
   );
