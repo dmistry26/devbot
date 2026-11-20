@@ -31,19 +31,27 @@ const NAV = [
   { href: "/academic", label: "Academic", icon: GraduationCap },
 ] as const;
 
+// Five teardrop petals around a filled center. The gradient spans the whole
+// flower (userSpaceOnUse) so it flows across petals, and follows the colorway.
+export const PETAL = "M12 11.2C9.6 8.9 9.7 4.6 12 2.9C14.3 4.6 14.4 8.9 12 11.2Z";
+
 export function Mark({ size = 22 }: { size?: number }) {
   const id = useId();
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21">
           <stop offset="0" style={{ stopColor: "var(--accent-hi)" }} />
           <stop offset="0.55" style={{ stopColor: "var(--gold)" }} />
           <stop offset="1" style={{ stopColor: "var(--ice)" }} />
         </linearGradient>
       </defs>
-      <rect x="4.5" y="4.5" width="15" height="15" rx="4" transform="rotate(45 12 12)" fill="none" stroke={`url(#${id})`} strokeWidth="1.4" />
-      <circle cx="12" cy="12" r="2.6" fill={`url(#${id})`} />
+      <g fill={`url(#${id})`} fillOpacity="0.14" stroke={`url(#${id})`} strokeWidth="1.25" strokeLinejoin="round">
+        {[0, 72, 144, 216, 288].map((deg) => (
+          <path key={deg} d={PETAL} transform={`rotate(${deg} 12 12)`} />
+        ))}
+      </g>
+      <circle cx="12" cy="12" r="2.3" fill={`url(#${id})`} />
     </svg>
   );
 }
