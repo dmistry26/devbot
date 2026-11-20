@@ -103,6 +103,8 @@ export interface Note {
 
 export interface Profile {
   name: string;
+  /** Link to the student's grade portal (e.g. PowerSchool), opened from the Academic page. */
+  gradesUrl?: string;
 }
 
 export interface Snapshot {

@@ -69,7 +69,7 @@ export async function POST(req: Request) {
           (m) => m.modname === "book" && m.visible !== 0 && m.uservisible !== false,
         );
         const name = shortCourseName(course.fullname);
-        const entry: SchoolCourse = { id: course.id, name, fullname: course.fullname, hasHomework: books.length > 0, sampleDates: [] };
+        const entry: SchoolCourse = { id: course.id, name, fullname: htmlToText(course.fullname), hasHomework: books.length > 0, sampleDates: [] };
         courses.push(entry);
         const day: DayIndex = body.days?.[String(course.id)] === 1 ? 1 : 0;
 

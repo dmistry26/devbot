@@ -36,6 +36,12 @@ Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript �
 - `components/calendar/CalendarView.tsx`: month, week, day and agenda views. Click an empty slot to create an event (snapped to 30 minutes), or click an event to edit it. Tasks due that day appear in a "Due" row, with tests highlighted.
 - `components/ui/EventEditor.tsx`: create/edit/delete with repeat rules, an end date, and live overlap warnings. Edits to a repeating event apply to the whole series.
 
+## Academic page
+
+`components/academic/AcademicView.tsx` lists every class that has a "Lesson Plans & Homework" section, using `school.courses` from the last sync. Tasks belong to a class through their external id (`vcs:<courseId>:…`), or through `context` for hand-made tasks. Each class shows tests and quizzes as countdowns, homework grouped as overdue / today / tomorrow / later / no date, and recently completed work. The A/B label only appears once it's chosen in Settings → School.
+
+Grades come from PowerSchool, which offers no student API, and the Moodle gradebook isn't used at VCS (`gradereport_overview` is empty and item grades return `nopermissiontoviewgrades`). The page therefore links out using a PowerSchool URL saved in `profile.gradesUrl`, rather than scraping with a password.
+
 ## Calendar subscriptions
 
 - `lib/ics.ts` parses iCal feeds: all-day and multi-day events, UTC/TZID/floating times converted to your timezone, simple RRULEs, and cancelled events dropped (tested in `scripts/test-ics.mts`).
