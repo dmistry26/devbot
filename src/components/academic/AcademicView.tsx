@@ -44,6 +44,8 @@ interface ClassData {
   homework: Task[];
   done: Task[];
   next: Task | null;
+  overdue: number;
+  sortKey: string;
 }
 
 export function AcademicView() {
@@ -78,10 +80,14 @@ function Academic({ now }: { now: Date }) {
         // Only label A/B once it's been chosen in Settings → School (don't guess).
         const pick = school.days[String(course.id)];
         const day = course.sampleDates.length >= 2 && pick !== undefined ? (pick === 1 ? "B day" : "A day") : null;
-        return { course, day, tests, homework, done, next: [...open].sort(byDue)[0] ?? null };
+        const sorted = [...open].sort(byDue);
+        const overdue = sorted.filter((t) => t.dueDate && t.dueDate < today).length;
+        // "next" is the first thing still ahead (today or later); overdue work is counted separately.
+        const next = sorted.find((t) => !t.dueDate || t.dueDate >= today) ?? null;
+        return { course, day, tests, homework, done, next, overdue, sortKey: sorted[0]?.dueDate ?? "9999" };
       })
-      .sort((a, b) => (a.next?.dueDate ?? "9999").localeCompare(b.next?.dueDate ?? "9999") || a.course.name.localeCompare(b.course.name));
-  }, [school.courses, school.days, tasks, recent]);
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.course.name.localeCompare(b.course.name));
+  }, [school.courses, school.days, tasks, recent, today]);
 
   const active = classes.find((c) => c.course.id === selected) ?? classes[0];
   const dueThisWeek = classes.reduce((n, c) => n + c.homework.filter((t) => t.dueDate && t.dueDate <= weekEnd).length, 0);
@@ -152,12 +158,9 @@ function Academic({ now }: { now: Date }) {
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
                       <span className="text-ink-3">{c.homework.length} homework</span>
                       {c.tests.length > 0 && <span className="text-coral">{c.tests.length} test{c.tests.length === 1 ? "" : "s"}</span>}
-                      {c.next?.dueDate && (
-                        <span className={daysUntil(c.next.dueDate, now) < 0 ? "text-coral" : "text-ink-4"}>
-                          next: {relativeDay(c.next.dueDate, now).toLowerCase()}
-                        </span>
-                      )}
-                      {!c.next && <span className="text-sage">all caught up</span>}
+                      {c.overdue > 0 && <span className="text-coral">{c.overdue} overdue</span>}
+                      {c.next?.dueDate && <span className="text-ink-4">next due {relativeDay(c.next.dueDate, now).toLowerCase()}</span>}
+                      {!c.next && c.overdue === 0 && <span className="text-sage">all caught up</span>}
                     </div>
                   </button>
                 </li>
