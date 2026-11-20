@@ -1,38 +1,49 @@
 # devbot
 
-A personal AI command center. Open it, see your day, tell it what changed, close it.
+my personal command center. open it, see my day, tell it what changed, close it, go live my life.
 
-## What works today
+i got tired of juggling five apps + moodle so i built one thing that does it all and mostly manages itself.
 
-- **Home command center**: time-aware greeting, day progress dial, today's priorities grouped by importance (Focus / Up next / If there's time), schedule timeline with a live "now" line, deadline countdowns, and Chief of Staff insights computed from your real data.
-- **Tasks**: create, edit, complete, reopen, reschedule, delete. Every change can be undone.
-- **AI command bar** (`⌘K` or `/`), powered by Google Gemini's free tier (Claude also supported): text or voice input, Chief of Staff and Academic Staff agents, "Plan my day", brain dump. The AI only *proposes* changes. You review them on a confirm card, untick anything you don't want, apply, and can undo.
-- **Calendar**: month, week, day and agenda views. Create and edit events with repeats (daily, weekdays, weekly, monthly, optional end date). It warns about overlaps, including future repeats, and shows homework and tests on their due dates. Shortcuts: M/W/D/A, ←/→, T.
-- **Calendar subscriptions**: add any public iCal/Google Calendar link. There's a one-click option for the VCS High School events calendar and the A/B day calendar from learn.vcs.net. Feed events are read-only, refresh every 6 hours, and the home screen shows whether today is an A or B day.
-- **Themes**: dark, light, or match system, with five colorways (Champagne, Aurora, Ember, Verdant, Graphite). The theme is applied before first paint so there's no flash.
-- **Local persistence**: your data stays in your browser until Supabase is connected.
-- **School homework sync** from learn.vcs.net (Moodle). Homework from every class's lesson plans shows up as tasks with due dates, and tests show up as deadlines. Setup is in Settings → School.
-- **Sample data** to preview the UI. It's clearly labelled and can be cleared in one click.
+## what it does
 
-## Run it
+- **home screen** – greeting, what's due today, my schedule with a little "now" line, countdowns to tests, and a chief of staff that actually notices stuff ("apush test sunday and you haven't planned any studying")
+- **ai command bar** – hit `⌘K` (or just talk to it) and say whatever. "add robotics meeting thursday 5pm", "i finished my calc hw", or dump my whole brain into it. it suggests changes, i look them over, hit apply. anything can be undone
+- **school sync** – pulls homework straight out of every class's lesson plans on learn.vcs.net. figures out due dates (even "next next class"), turns tests into deadlines. i never open moodle anymore
+- **calendar** – month / week / day / agenda, repeating events, yells at me if i double-book. school events + a/b days come in from the school calendar automatically
+- **themes** – dark, light, or whatever my mac is doing. five colorways bc why not
+- **works on my phone** – add it to the home screen and it's basically an app. locked behind a password so nobody's reading my homework
+
+## stack
+
+next.js 16 · react 19 · typescript · tailwind 4 · framer motion · zustand · gemini (free tier) for the ai · moodle web services for school · deployed on vercel
+
+## running it
 
 ```bash
 npm install
-cp .env.example .env.local   # then add GEMINI_API_KEY (free at aistudio.google.com/apikey)
+cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. Everything except the AI works without a key.
+then fill in `.env.local`:
 
-## Roadmap
+- `GEMINI_API_KEY` – free from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- `MOODLE_URL` + `MOODLE_TOKEN` – learn.vcs.net → profile → preferences → security keys
+- `DEVBOT_PASSWORD` – only on vercel, leave it out locally
 
-| Phase | Scope | Status |
-|---|---|---|
-| 1 | Design system, home screen, tasks, AI command bar with confirm and undo | ✅ |
-| 2 | Calendar views (month/week/day/agenda), recurring events, conflict detection | ✅ |
-| 2b | Supabase (auth, Postgres + RLS, cross-device sync), projects page. Needed before putting devbot online. | next |
-| 3 | Conversation memory in the database, agent hand-off, Academic page (classes, grades, study plans) | |
-| 4 | Notifications: web push, reminders, morning briefing, evening summary (Supabase cron + Edge Functions) | |
-| 5 | School import from learn.vcs.net | ✅ (syncs when devbot opens; daily background sync arrives with Phase 4) |
+everything except the ai works without keys. `npm test` runs the parser tests.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it fits together.
+## online
+
+lives on vercel, every push to `main` redeploys. setup steps are in [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## still cooking
+
+- [ ] supabase so my tasks sync between laptop + phone
+- [ ] notifications (morning briefing, reminders, evening recap)
+- [ ] projects page
+- [ ] academic page – grades, "what do i need on the final", study plans
+
+---
+
+how it all fits together → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
