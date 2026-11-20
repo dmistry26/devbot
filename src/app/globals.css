@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+/* ───────────────────────── devbot design tokens ─────────────────────────
+   Obsidian base, champagne-gold for "you", ice-blue for "AI".
+   Hairlines instead of heavy borders; glass only where it earns depth. */
+
+:root {
+  --bg: #06070a;
+  --bg-raise: #0b0d12;
+  --panel: rgba(255, 255, 255, 0.022);
+  --panel-hover: rgba(255, 255, 255, 0.04);
+  --line: rgba(255, 255, 255, 0.065);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --ink: #ecebe6;
+  --ink-2: #a5a49d;
+  --ink-3: #6c6b66;
+  --ink-4: #45443f;
+
+  --gold: #e9c27d;
+  --gold-soft: rgba(233, 194, 125, 0.12);
+  --ice: #8fc2ff;
+  --ice-soft: rgba(143, 194, 255, 0.12);
+  --coral: #ff7f6e;
+  --amber: #f2b45a;
+  --sage: #8fd3b0;
+  --rose: #ff9bb3;
+  --violet: #b9a4ff;
+
+  --radius: 18px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-raise: var(--bg-raise);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-gold: var(--gold);
+  --color-ice: var(--ice);
+  --color-coral: var(--coral);
+  --color-amber: var(--amber);
+  --color-sage: var(--sage);
+  --color-rose: var(--rose);
+  --color-violet: var(--violet);
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-instrument), ui-serif, Georgia, serif;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(233, 194, 125, 0.28);
+}
+
+/* Atmosphere: two slow auroras + faint grid + grain. Fixed behind everything. */
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.atmosphere::before,
+.atmosphere::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  animation: drift 28s var(--ease) infinite alternate;
+}
+.atmosphere::before {
+  width: 62vw;
+  height: 44vw;
+  left: -14vw;
+  top: -26vw;
+  background: radial-gradient(closest-side, rgba(233, 194, 125, 0.16), transparent);
+}
+.atmosphere::after {
+  width: 54vw;
+  height: 40vw;
+  right: -16vw;
+  top: -18vw;
+  background: radial-gradient(closest-side, rgba(143, 194, 255, 0.13), transparent);
+  animation-delay: -12s;
+}
+.atmosphere .grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black, transparent 75%);
+}
+.atmosphere .grain {
+  position: absolute;
+  inset: -50%;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+@keyframes drift {
+  to {
+    transform: translate3d(6vw, 4vw, 0) scale(1.08);
+  }
+}
+
+/* Panels: hairline border with a top highlight, very light fill. */
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 30px 60px -40px rgba(0, 0, 0, 0.8);
+}
+
+.glass {
+  background: rgba(14, 16, 22, 0.72);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 24px 80px -20px rgba(0, 0, 0, 0.9);
+}
+
+/* Small caps label used for section headers. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hairline that fades out at both ends. */
+.rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+
+/* The AI's signature: a slow ice-gold conic shimmer on a 1px ring. */
+.ai-ring {
+  position: relative;
+  isolation: isolate;
+}
+.ai-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    rgba(143, 194, 255, 0.5),
+    rgba(233, 194, 125, 0.45),
+    rgba(255, 255, 255, 0.08),
+    rgba(143, 194, 255, 0.5)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-angle 8s linear infinite;
+  z-index: -1;
+}
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes spin-angle {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 1.5px solid rgba(233, 194, 125, 0.6);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

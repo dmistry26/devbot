@@ -1,0 +1,68 @@
+"use client";
+
+import { useState } from "react";
+import { useHydrated, useStore } from "@/lib/store";
+import { useChat } from "@/components/command/chat-store";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { useUI } from "@/components/ui/ui-store";
+
+export default function SettingsPage() {
+  const hydrated = useHydrated();
+  const name = useStore((s) => s.profile.name);
+  const setProfile = useStore((s) => s.setProfile);
+  const counts = { t: useStore((s) => s.tasks.length), e: useStore((s) => s.events.length), p: useStore((s) => s.projects.length) };
+  const toast = useUI((s) => s.toast);
+  const [confirm, setConfirm] = useState(false);
+  if (!hydrated) return null;
+
+  const erase = () => {
+    useStore.getState().replaceAll({ tasks: [], events: [], projects: [], notes: [] }, "Erased all data");
+    useChat.getState().clear();
+    setConfirm(false);
+    toast({ text: "All data erased", undo: true });
+  };
+
+  return (
+    <div className="mx-auto max-w-[720px] px-4 pt-6 sm:px-8 md:pt-12">
+      <PageHeader eyebrow="Settings" title="Settings" />
+      <div className="space-y-5">
+        <section className="panel p-6">
+          <h2 className="eyebrow mb-4">Profile</h2>
+          <label className="block space-y-2">
+            <span className="text-sm text-ink-2">What should devbot call you?</span>
+            <input
+              defaultValue={name}
+              onBlur={(e) => setProfile({ name: e.target.value.trim() })}
+              className="w-full max-w-xs rounded-xl border border-line bg-white/[0.025] px-3 py-2 text-sm text-ink outline-none focus:border-line-strong"
+            />
+          </label>
+        </section>
+
+        <section className="panel p-6">
+          <h2 className="eyebrow mb-4">Your data</h2>
+          <p className="text-sm leading-relaxed text-ink-2">
+            Right now everything is stored in this browser ({counts.t} tasks, {counts.e} events, {counts.p} projects). Once Supabase is connected, it will sync securely across your devices.
+          </p>
+          {confirm ? (
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-sm text-coral">Erase everything in this browser?</span>
+              <button onClick={erase} className="rounded-lg bg-coral px-3 py-1.5 text-xs font-medium text-black">Erase</button>
+              <button onClick={() => setConfirm(false)} className="text-xs text-ink-3">Cancel</button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirm(true)} className="mt-4 text-sm text-ink-3 hover:text-coral">Erase all data…</button>
+          )}
+        </section>
+
+        <section className="panel p-6">
+          <h2 className="eyebrow mb-4">Coming next</h2>
+          <ul className="space-y-1.5 text-sm text-ink-3">
+            <li>Notifications — morning briefing, reminders, evening summary</li>
+            <li>Account &amp; sync (Supabase)</li>
+            <li>School connection (learn.vcs.net)</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
