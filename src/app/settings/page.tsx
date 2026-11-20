@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useHydrated, useStore } from "@/lib/store";
 import { useChat } from "@/components/command/chat-store";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SchoolSettings } from "@/components/settings/SchoolSettings";
 import { useUI } from "@/components/ui/ui-store";
 
 export default function SettingsPage() {
@@ -38,6 +39,8 @@ export default function SettingsPage() {
           </label>
         </section>
 
+        <SchoolSettings />
+
         <section className="panel p-6">
           <h2 className="eyebrow mb-4">Your data</h2>
           <p className="text-sm leading-relaxed text-ink-2">
@@ -59,7 +62,6 @@ export default function SettingsPage() {
           <ul className="space-y-1.5 text-sm text-ink-3">
             <li>Notifications — morning briefing, reminders, evening summary</li>
             <li>Account &amp; sync (Supabase)</li>
-            <li>School connection (learn.vcs.net)</li>
           </ul>
         </section>
       </div>

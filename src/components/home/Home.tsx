@@ -4,6 +4,7 @@ import { useStore, useNow } from "@/lib/store";
 import { buildSample, isSample } from "@/lib/sample";
 import { Skeleton } from "@/components/ui/primitives";
 import { useUI } from "@/components/ui/ui-store";
+import { useSchoolAutoSync } from "@/lib/school/client";
 import { Greeting } from "./Greeting";
 import { Priorities } from "./Priorities";
 import { Schedule } from "./Schedule";
@@ -14,6 +15,7 @@ export function Home() {
   const now = useNow();
   const hasSample = useStore((s) => s.tasks.some(isSample) || s.events.some(isSample));
   const toast = useUI((s) => s.toast);
+  useSchoolAutoSync();
 
   if (!now) return <HomeSkeleton />;
 

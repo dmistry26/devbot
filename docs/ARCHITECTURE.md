@@ -37,6 +37,12 @@ Tables: `tasks`, `events`, `projects`, `notes`, `conversations`, `messages`, `no
 
 `pg_cron` runs every minute and calls an Edge Function. The function finds due `notifications` rows and sends Web Push using VAPID keys, and the browser's service worker displays them. The `notifications` table and `push_subscriptions` are channel-agnostic, so mobile push (APNs/FCM) can be added later. The app will not claim reminders work until this exists.
 
-## Planned: school import (Phase 5)
+## School import (learn.vcs.net)
 
-learn.vcs.net is a custom portal with no public API. The plan is a server-side importer that logs in with the student's own credentials, stored encrypted as server secrets, never in the browser. It walks each class's "Lesson Plans & HW" pages and upserts assignments as tasks with `source = 'school'`, deduplicated by a stable external id. It runs on a schedule and shows "last synced" plus clear errors. The first step is mapping the page structure while logged in.
+learn.vcs.net is Moodle. Every class has a "Lesson Plans & Homework" section containing one Book per quarter. Each chapter is one class meeting, titled with the A/B-day date pair (for example "November 19/20"), and contains a "Homework" heading.
+
+- **Auth**: the student's personal *Moodle mobile web service* key (Preferences → Security keys), stored as `MOODLE_TOKEN` on the server only. No password; Google sign-in and two-step verification are untouched. The key can be revoked from the same page.
+- **Fetch** (`lib/school/moodle.ts`): `core_webservice_get_site_info` → `core_enrol_get_users_courses` → `core_course_get_contents`. Book chapters are downloaded from their `webservice/pluginfile.php` URLs, and only chapters in a −7 to +21 day window are fetched.
+- **Parse** (`lib/school/parse.ts`, tested in `scripts/test-school-parse.mts`): it reads the chapter date pair and the lines under "Homework", then resolves due dates from explicit dates ("Oct 15/20"), "next class", or "next next class", defaulting to the next meeting. Each class's A/B day picks which date of the pair applies. Quiz/test/exam lines become high-priority deadlines.
+- **Merge** (`lib/school/merge.ts`): items are upserted by a stable `externalId` (`vcs:<cmid>:<chapter>:<n>`). Homework is scheduled the day before it's due. Tasks you completed or edited are never overwritten, and tasks you delete are remembered so they don't come back.
+- **When**: automatically when devbot opens (if the last sync is older than 3 hours), plus "Sync now" in Settings. Background daily sync needs a scheduler, so it comes with Supabase cron in Phase 4.

@@ -31,6 +31,10 @@ export interface Task {
   scheduledDate: string | null; // the day you plan to work on it
   projectId: string | null;
   source: Source;
+  /** Stable id from an import source (e.g. "vcs:<cmid>:<chapter>:<n>"), used to dedupe re-syncs. */
+  externalId?: string | null;
+  /** Link back to where the task came from, e.g. the Moodle book chapter. */
+  sourceUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;

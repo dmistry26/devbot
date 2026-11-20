@@ -9,7 +9,18 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { useSyncExternalStore } from "react";
 import { applyActions, type Action } from "./actions";
 import type { HistoryEntry, Profile, Snapshot } from "./types";
-import { toDateTime } from "./dates";
+import { toDateKey, toDateTime } from "./dates";
+import { mergeSchoolItems } from "./school/merge";
+import type { SchoolCourse, SchoolItem } from "./school/types";
+
+export interface SchoolState {
+  /** Per Moodle course id: 0 = you have the class on the first date of the pair, 1 = second. */
+  days: Record<string, 0 | 1>;
+  courses: SchoolCourse[];
+  lastSync: string | null; // ISO
+  /** External ids of imported tasks you deleted, so re-syncs don't bring them back. */
+  dismissed: string[];
+}
 
 const HISTORY_LIMIT = 40;
 
@@ -20,6 +31,9 @@ interface State extends Snapshot {
   undo: () => HistoryEntry | null;
   setProfile: (p: Partial<Profile>) => void;
   replaceAll: (s: Snapshot, label: string) => void;
+  school: SchoolState;
+  setSchool: (p: Partial<SchoolState>) => void;
+  importSchool: (items: SchoolItem[], courses: SchoolCourse[]) => { added: number; updated: number };
 }
 
 const empty: Snapshot = { tasks: [], events: [], projects: [], notes: [] };
@@ -41,6 +55,11 @@ export const useStore = create<State>()(
         };
         const nowIso = toDateTime(new Date());
         const next = applyActions(before, actions, by === "ai" ? "ai" : "manual", nowIso);
+        // Remember deleted imports so the next school sync doesn't re-add them.
+        const deletedExt = actions
+          .filter((a) => a.type === "delete_task")
+          .map((a) => s.tasks.find((t) => t.id === (a as { task_id: string }).task_id)?.externalId)
+          .filter((x): x is string => !!x);
         const entry: HistoryEntry = {
           id: nowIso + Math.random().toString(36).slice(2, 6),
           label,
@@ -48,7 +67,13 @@ export const useStore = create<State>()(
           by,
           before,
         };
-        set({ ...next, history: [entry, ...s.history].slice(0, HISTORY_LIMIT) });
+        set({
+          ...next,
+          history: [entry, ...s.history].slice(0, HISTORY_LIMIT),
+          ...(deletedExt.length
+            ? { school: { ...s.school, dismissed: [...s.school.dismissed, ...deletedExt].slice(-500) } }
+            : {}),
+        });
         return entry.id;
       },
       undo: () => {
@@ -58,6 +83,28 @@ export const useStore = create<State>()(
         return last;
       },
       setProfile: (p) => set({ profile: { ...get().profile, ...p } }),
+      school: { days: {}, courses: [], lastSync: null, dismissed: [] },
+      setSchool: (p) => set({ school: { ...get().school, ...p } }),
+      importSchool: (items, courses) => {
+        const s = get();
+        const now = new Date();
+        const nowIso = toDateTime(now);
+        const r = mergeSchoolItems(s.tasks, items, new Set(s.school.dismissed), nowIso, toDateKey(now));
+        const school = { ...s.school, courses, lastSync: now.toISOString() };
+        if (!r.added && !r.updated) {
+          set({ school });
+          return r;
+        }
+        const entry: HistoryEntry = {
+          id: nowIso + "school",
+          label: `School sync: ${r.added} new, ${r.updated} updated`,
+          at: nowIso,
+          by: "you",
+          before: { tasks: s.tasks, events: s.events, projects: s.projects, notes: s.notes },
+        };
+        set({ tasks: r.tasks, school, history: [entry, ...s.history].slice(0, HISTORY_LIMIT) });
+        return r;
+      },
       replaceAll: (snap, label) => {
         const s = get();
         const entry: HistoryEntry = {
@@ -74,12 +121,13 @@ export const useStore = create<State>()(
       name: "devbot.v1",
       storage: createJSONStorage(() => localStorage),
       version: 1,
-      partialize: ({ tasks, events, projects, notes, profile, history }) => ({
+      partialize: ({ tasks, events, projects, notes, profile, history, school }) => ({
         tasks,
         events,
         projects,
         notes,
         profile,
+        school,
         history: history.slice(0, 15),
       }),
     },

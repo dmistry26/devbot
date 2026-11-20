@@ -72,7 +72,29 @@ export function TaskRow({ task, now }: { task: Task; now: Date }) {
             </span>
           )}
           {task.source === "ai" && <span className="text-[11px] text-ice/80">via devbot</span>}
-          {task.source === "school" && <span className="text-[11px] text-ice/80">from school</span>}
+          {task.source === "school" && (
+            task.sourceUrl ? (
+              <span
+                role="link"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(task.sourceUrl!, "_blank", "noopener");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    window.open(task.sourceUrl!, "_blank", "noopener");
+                  }
+                }}
+                className="text-[11px] text-ice/80 hover:underline"
+              >
+                from lesson plan
+              </span>
+            ) : (
+              <span className="text-[11px] text-ice/80">from school</span>
+            )
+          )}
         </div>
       </button>
       <div className="flex items-center gap-1 pt-1">
