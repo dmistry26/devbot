@@ -1,8 +1,9 @@
 # devbot
 
-my personal command center. open it, see my day, tell it what changed, close it, go live my life.
+my personal ai-powered command center. open it, see my day, tell it what changed, close it, go live my life.
 
-i got tired of juggling five apps + moodle so i built one thing that does it all and mostly manages itself.
+i got tired of juggling five app soooo i built one thing that does it all and mostly manages itself.
+yay no more opening moodle :>
 
 ## what it does
 
