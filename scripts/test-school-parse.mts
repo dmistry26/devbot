@@ -78,6 +78,9 @@ const ax = (text: string, i: number) => extractAssessments(text, { chapterIndex:
 // Physics weekly plan inside the Nov 18 chapter: Monday quiz this week, Thursday test rolls into next week
 const physics = "Classroom Activities\n- Turn in 5 FRQs\nMonday: Momentum Quiz, HW: FRQ5\nWednesday: Turn in all FRQs, HW: CBMCQ\nFriday: Study day (CB MCQ in class)\nThursday - Circular Motion and Linear Momentum Test\nHomework\n- Do FRQ 5";
 assert.deepEqual(ax(physics, 1), ["2026-11-16 Momentum Quiz r2", "2026-11-26 Circular Motion and Linear Momentum Test r2"]);
+// Real Nov 20 Physics plan: rolls through Zoom Tuesday (Nov 24) and the Tuesday after break (Dec 1) to Thursday Dec 3
+const physicsNov20 = "Classroom Activities\n- Pick up FRQs for Tuesday's Zoom class\nMonday: Momentum Quiz, HW: FRQ5\nWednesday: Turn in all FRQs, HW: CBMCQ\nFriday: Study day (CB MCQ in class)\nTuesday (On Zoom) - FRQs in class, due during class\nTuesday - Study day\nThursday - Circular Motion and Linear Momentum Test\nHomework\n- Have a great weekend";
+assert.deepEqual(ax(physicsNov20, 2), ["2026-11-16 Momentum Quiz r2", "2026-12-03 Circular Motion and Linear Momentum Test r2"]);
 // Activity lines that are the test that day
 assert.deepEqual(ax("Unit 5: Test\nClassroom Activities\n- Devotion\n- Chapter 5 Test\nHomework\n- None", 0), ["2026-11-16 Unit 5 Test r3", "2026-11-16 Chapter 5 Test r3"]);
 assert.deepEqual(ax("Classroom Activities\n- Free Response 3A quiz (12 min)\n- Momentum Quiz next class", 0), ["2026-11-16 Free Response 3A quiz r3", "2026-11-18 Momentum Quiz r1"]);
@@ -130,4 +133,9 @@ assert.equal(m5.added, 0);
 // Different type same week is a different test
 const quiz = item(10, { externalId: "vcs:1:deadline:quiz:20261130", title: "Group quiz", kind: "deadline", priority: "high", dueDate: "2026-12-01" });
 assert.equal(mergeSchoolItems([oldTest], [quiz], new Set(), "x", "2026-11-21").added, 1);
+// A test that moved a week (parser fix) updates in place
+const physOld = { ...m.tasks[1], externalId: "vcs:1340:deadline:test:20261123", title: "Circular Motion and Linear Momentum Test", dueDate: "2026-11-26", context: "AP Physics 1", source: "school" as const };
+const physNew = item(11, { externalId: "vcs:1340:deadline:test:20261130", courseName: "AP Physics 1", title: "Circular Motion and Linear Momentum Test", kind: "deadline", priority: "high", dueDate: "2026-12-03" });
+const m6 = mergeSchoolItems([physOld], [physNew], new Set(), "x", "2026-11-21");
+assert.equal(m6.tasks.length, 1); assert.equal(m6.tasks[0].dueDate, "2026-12-03");
 console.log("all merge tests passed");

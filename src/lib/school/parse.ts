@@ -306,7 +306,8 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
   return [{ title, dueDate, dueTime, kind: "task", priority: "normal", key: `task:${slug(title)}` }];
 }
 
-const WEEKDAY_LINE = /^(monday|tuesday|wednesday|thursday|friday)\s*[:\-–—]\s*(.+)$/i;
+// "Thursday - Test", "Monday: Quiz", "Tuesday (On Zoom) - FRQs"
+const WEEKDAY_LINE = /^(monday|tuesday|wednesday|thursday|friday)\s*(?:\([^)]*\))?\s*[:\-–—]\s*(.+)$/i;
 
 function mondayOf(key: string) {
   const [y, m, d] = key.split("-").map(Number);

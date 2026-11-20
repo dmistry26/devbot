@@ -33,8 +33,8 @@ const dayDiff = (a: string, b: string) => {
 
 /**
  * A test imported earlier may have a different id (ids changed as parsing got
- * smarter, or the date moved a day). Treat the same class + kind of test within
- * 3 days as the same test, so it updates instead of duplicating.
+ * smarter, or the date moved). Treat the same class + kind of test within 3 days
+ * (quizzes) or 8 days (tests/exams) as the same test, so it updates instead of duplicating.
  */
 function findSameTest(tasks: Task[], item: SchoolItem, claimed: Set<string>): Task | undefined {
   if (item.kind !== "deadline" || !item.dueDate) return undefined;
@@ -47,7 +47,8 @@ function findSameTest(tasks: Task[], item: SchoolItem, claimed: Set<string>): Ta
       t.context === item.courseName &&
       t.dueDate !== null &&
       testType(t.title) === type &&
-      dayDiff(t.dueDate, item.dueDate!) <= 3,
+      // Quizzes can be weekly, so only match nearby ones; a test that moves a week is still the same test.
+      dayDiff(t.dueDate, item.dueDate!) <= (type === "quiz" ? 3 : 8),
   );
 }
 
