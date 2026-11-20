@@ -19,6 +19,8 @@ Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript �
 ## AI
 
 - **Providers** (`lib/ai/provider.ts`): one interface, two adapters: `providers/gemini.ts` (default, free tier) and `providers/anthropic.ts`. `AI_PROVIDER` picks one explicitly; otherwise devbot uses whichever key is set, Gemini first. Tool schemas are defined once as provider-neutral JSON Schema (`lib/ai/tools.ts`). The Gemini adapter turns nullable fields into optional ones, and `normalizeInput` fills missing fields back in with null.
+- Gemini model chain: `gemini-3.8-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` (`GEMINI_MODEL` is tried first). Each attempt has a 15s timeout and no SDK retries, and the model that last worked is tried first next time. This keeps commands quick when the free tier is congested.
+- The confirm card rejects proposals with dates in the past (usually a wrong year or a made-up date), along with unknown ids and bad formats.
 - Free-tier note: Google may use free-tier Gemini prompts, which include your task and schedule context, to improve its products.
 - `POST /api/command` sends the conversation, a snapshot of your data and your local time.
 - The server builds a compact context block (open tasks, the next 14 days of schedule, free time, projects) and calls Claude with **strict tool schemas** (`lib/ai/tools.ts`).

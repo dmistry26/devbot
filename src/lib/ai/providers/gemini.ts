@@ -3,8 +3,15 @@ import { ApiError, GoogleGenAI, type Content, type FunctionDeclaration } from "@
 import { ProviderError, type Provider } from "../provider";
 import type { ToolDef } from "../tools";
 
-// Free-tier friendly default; override with GEMINI_MODEL.
-const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
+// The free tier gets congested: newer models often time out or return
+// "high demand". Try models in order, give each a short timeout with no
+// SDK retries, and start with whichever model worked last time.
+// GEMINI_MODEL (optional) is tried first.
+const MODELS = [
+  ...new Set([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"].filter((m): m is string => !!m)),
+];
+const ATTEMPT_TIMEOUT_MS = 15_000;
+let lastGood: string | null = null;
 
 /**
  * Gemini handles "optional" better than "nullable": turn `type: [X, "null"]`,
@@ -49,7 +56,7 @@ const declarations = (tools: ToolDef[]): FunctionDeclaration[] =>
 
 export const gemini: Provider = {
   id: "gemini",
-  label: `Google ${MODEL}`,
+  label: "Google Gemini",
   async run({ system, messages, tools }) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -58,41 +65,57 @@ export const gemini: Provider = {
         "no_key",
       );
     }
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: ATTEMPT_TIMEOUT_MS, retryOptions: { attempts: 1 } } });
     const contents: Content[] = messages.map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
-    try {
-      const res = await ai.models.generateContent({
-        model: MODEL,
-        contents,
-        config: {
-          systemInstruction: system,
-          tools: [{ functionDeclarations: declarations(tools) }],
-        },
-      });
-      if (res.promptFeedback?.blockReason) {
-        throw new ProviderError("Gemini declined that request.", "refused");
+    const order = lastGood ? [lastGood, ...MODELS.filter((m) => m !== lastGood)] : MODELS;
+    let busy = false;
+
+    for (const model of order) {
+      try {
+        const res = await ai.models.generateContent({
+          model,
+          contents,
+          config: { systemInstruction: system, tools: [{ functionDeclarations: declarations(tools) }] },
+        });
+        if (res.promptFeedback?.blockReason) throw new ProviderError("Gemini declined that request.", "refused");
+        lastGood = model;
+        console.info(`Gemini answered with ${model}`);
+        return {
+          text: (res.text ?? "").trim(),
+          calls: (res.functionCalls ?? [])
+            .filter((c) => c.name)
+            .map((c) => ({ name: c.name!, input: (c.args ?? {}) as Record<string, unknown> })),
+        };
+      } catch (e) {
+        if (e instanceof ProviderError) throw e;
+        if (e instanceof ApiError) {
+          if ((e.status === 400 && /api key/i.test(e.message)) || e.status === 401 || e.status === 403) {
+            throw new ProviderError("Your Gemini API key was rejected. Check GEMINI_API_KEY.", "bad_key");
+          }
+          if (e.status === 400) {
+            console.error("Gemini rejected the request", model, e.message);
+            throw new ProviderError("The AI couldn't process that request.", "failed");
+          }
+          // 404 (model retired), 429 (quota), 5xx (overloaded): try the next model.
+          console.warn(`Gemini ${model} unavailable (${e.status}); trying next model`);
+          if (e.status === 429 || e.status >= 500) busy = true;
+          if (lastGood === model) lastGood = null;
+          continue;
+        }
+        // Timeouts and network errors: try the next model.
+        console.warn(`Gemini ${model} timed out or failed; trying next model`);
+        busy = true;
+        if (lastGood === model) lastGood = null;
       }
-      return {
-        text: (res.text ?? "").trim(),
-        calls: (res.functionCalls ?? [])
-          .filter((c) => c.name)
-          .map((c) => ({ name: c.name!, input: (c.args ?? {}) as Record<string, unknown> })),
-      };
-    } catch (e) {
-      if (e instanceof ProviderError) throw e;
-      if (e instanceof ApiError) {
-        if (e.status === 429) throw new ProviderError("Gemini's free-tier limit was hit — wait a minute and try again.", "rate_limited");
-        if (e.status === 400 && /api key/i.test(e.message)) throw new ProviderError("Your Gemini API key was rejected. Check GEMINI_API_KEY.", "bad_key");
-        if (e.status === 401 || e.status === 403) throw new ProviderError("Your Gemini API key was rejected. Check GEMINI_API_KEY.", "bad_key");
-        if (e.status === 404) throw new ProviderError(`Gemini model "${MODEL}" isn't available. Set GEMINI_MODEL in .env.local.`, "failed");
-        console.error("Gemini API error", e.status, e.message);
-        throw new ProviderError(`The AI request failed (${e.status}).`, "failed");
-      }
-      console.error(e);
-      throw new ProviderError("Couldn't reach Gemini.", "failed");
     }
+    throw new ProviderError(
+      busy
+        ? "Google's free AI is overloaded right now. Try again in a minute."
+        : "No Gemini model is available for your key. Set GEMINI_MODEL in .env.local.",
+      busy ? "rate_limited" : "failed",
+    );
   },
 };

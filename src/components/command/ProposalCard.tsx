@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, CalendarPlus, FolderPlus, ListPlus, NotebookPen, PenLine, Trash2, Undo2, CircleCheck, RotateCcw } from "lucide-react";
 import { describeAction, isDestructive, validateAction, type Action } from "@/lib/actions";
-import { formatTime, relativeDay, timeOf } from "@/lib/dates";
+import { formatTime, relativeDay, timeOf, toDateKey } from "@/lib/dates";
 import { snapshotOf, useStore } from "@/lib/store";
 import { findConflicts } from "@/lib/calendar";
 import type { CalendarEvent } from "@/lib/types";
@@ -87,7 +87,7 @@ export function ProposalCard({
   const toast = useUI((s) => s.toast);
   const snap = snapshotOf(data);
   const now = new Date();
-  const checked = actions.map((a) => validateAction(a, snap));
+  const checked = actions.map((a) => validateAction(a, snap, toDateKey(now)));
   const [on, setOn] = useState(() => actions.map((_, i) => checked[i] === null));
   const selected = actions.filter((_, i) => on[i] && checked[i] === null);
 

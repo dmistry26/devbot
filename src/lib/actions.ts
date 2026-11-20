@@ -104,7 +104,24 @@ const okPri = (v: unknown) => PRIORITIES.includes(v as Priority);
 const str = (v: unknown) => typeof v === "string" && v.trim().length > 0;
 
 /** Validate an action from an untrusted source (the model). Returns an error string or null. */
-export function validateAction(a: Action, data: Snapshot): string | null {
+export function validateAction(a: Action, data: Snapshot, today?: string): string | null {
+  // Proposals with dates in the past are almost always a wrong year or a made-up date.
+  if (today) {
+    const yesterday = (() => {
+      const [y, m, d] = today.split("-").map(Number);
+      const dt = new Date(y, m - 1, d - 1);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    })();
+    const dates =
+      a.type === "create_task" || a.type === "update_task"
+        ? [a.due_date, a.scheduled_date]
+        : a.type === "create_event" || a.type === "update_event"
+          ? [a.start?.slice(0, 10) ?? null]
+          : a.type === "create_project"
+            ? [a.target_date]
+            : [];
+    if (dates.some((d) => typeof d === "string" && d < yesterday)) return "That date is in the past";
+  }
   switch (a.type) {
     case "create_task":
       if (!str(a.title)) return "Task needs a title";
