@@ -19,7 +19,7 @@ export function Insights({ now }: { now: Date }) {
 
   return (
     <section className="panel ai-ring overflow-hidden p-5 sm:p-6">
-      <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[radial-gradient(closest-side,rgba(143,194,255,0.14),transparent)]" />
+      <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--ice)_16%,transparent),transparent)]" />
       <div className="mb-4 flex items-center gap-2">
         <span className="grid size-6 place-items-center rounded-lg bg-ice/10 text-ice">
           <Sparkles size={12} />
@@ -41,7 +41,7 @@ export function Insights({ now }: { now: Date }) {
             >
               <button
                 onClick={() => ins.prompt && openCommand(ins.prompt, true)}
-                className="group flex w-full items-start gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
+                className="group flex w-full items-start gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-ink/[0.03]"
               >
                 <span className="mt-[7px] size-1.5 shrink-0 rounded-full" style={{ background: TONE[ins.tone], boxShadow: `0 0 8px ${TONE[ins.tone]}` }} />
                 <span className="flex-1 text-[13.5px] leading-relaxed text-ink-2 group-hover:text-ink">{ins.text}</span>

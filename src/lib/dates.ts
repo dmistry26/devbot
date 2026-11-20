@@ -51,7 +51,11 @@ export function occurrenceOn(
   dateKey: string,
 ): CalendarEvent | null {
   const startDay = dateOf(ev.start);
-  if (!ev.recurrence) return startDay === dateKey ? ev : null;
+  if (!ev.recurrence) {
+    // All-day events can span several days (end is exclusive).
+    if (ev.allDay) return dateKey >= startDay && dateKey < dateOf(ev.end) ? ev : null;
+    return startDay === dateKey ? ev : null;
+  }
   if (dateKey < startDay) return null;
   if (ev.recurrence.until && dateKey > ev.recurrence.until) return null;
   const day = parseDateKey(dateKey);
@@ -79,6 +83,27 @@ export function occurrenceOn(
     start: toDateTime(start),
     end: toDateTime(new Date(start.getTime() + durMin * 60000)),
   };
+}
+
+/** Timed events only (excludes all-day), sorted by start. */
+export function timedEventsOn(events: CalendarEvent[], dateKey: string): CalendarEvent[] {
+  return eventsOn(events, dateKey).filter((e) => !e.allDay);
+}
+
+/** All-day events on a day, minus A/B-day markers (shown as a label instead). */
+export function allDayOn(events: CalendarEvent[], dateKey: string): CalendarEvent[] {
+  return eventsOn(events, dateKey).filter((e) => e.allDay && !SCHOOL_DAY_RE.test(e.title));
+}
+
+const SCHOOL_DAY_RE = /^\s*(?:HS\s+)?([AB])\s*Day\s*$/i;
+
+/** "A Day" / "B Day" from a subscribed A/B calendar, if there is one for this date. */
+export function schoolDayOn(events: CalendarEvent[], dateKey: string): string | null {
+  for (const e of eventsOn(events, dateKey)) {
+    const m = e.allDay ? e.title.match(SCHOOL_DAY_RE) : null;
+    if (m) return `${m[1].toUpperCase()} Day`;
+  }
+  return null;
 }
 
 export function eventsOn(events: CalendarEvent[], dateKey: string): CalendarEvent[] {

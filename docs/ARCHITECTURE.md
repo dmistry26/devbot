@@ -36,6 +36,19 @@ Next.js 16 (App Router, Turbopack, Cache Components) · React 19 · TypeScript �
 - `components/calendar/CalendarView.tsx`: month, week, day and agenda views. Click an empty slot to create an event (snapped to 30 minutes), or click an event to edit it. Tasks due that day appear in a "Due" row, with tests highlighted.
 - `components/ui/EventEditor.tsx`: create/edit/delete with repeat rules, an end date, and live overlap warnings. Edits to a repeating event apply to the whole series.
 
+## Calendar subscriptions
+
+- `lib/ics.ts` parses iCal feeds: all-day and multi-day events, UTC/TZID/floating times converted to your timezone, simple RRULEs, and cancelled events dropped (tested in `scripts/test-ics.mts`).
+- `POST /api/calendar/feed` fetches the feed on the server (to get around CORS), accepts only public https/webcal links, caps size and time, and returns events from 30 days ago to a year ahead.
+- `lib/calendar-sync.ts` stores events with `subscriptionId` and replaces them on each refresh. Refreshes aren't undo history, and undo keeps the current feed events.
+- All-day events (`allDay: true`) appear as chips and in "All day" rows, and are excluded from conflicts, free time and the time grid. Events titled like "HS A Day" / "HS B Day" become a label (`schoolDayOn`) instead of cluttering every day.
+
+## Theming
+
+- `globals.css` defines tokens per theme (`data-theme="dark" | "light"`) and per colorway (`data-accent`). `--gold` is the primary/"you" accent and `--ice` is the AI accent. Category colors (`--cat-*`) are independent of the colorway.
+- `lib/theme-script.ts` holds the inline `<head>` script that applies the saved preference before first paint. `lib/theme.ts` handles changes and keeps "match system" in sync.
+- Components use tokens (`bg-ink/[0.03]`, `text-on-accent`) rather than hard-coded white/black, so both themes work.
+
 ## Dates
 
 Local "floating" strings (`YYYY-MM-DD`, `HH:mm`, `YYYY-MM-DDTHH:mm`) keep things simple for one user. In Supabase they become `date` / `time` / `timestamptz` columns plus the user's IANA timezone, which reminders need anyway.

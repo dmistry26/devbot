@@ -103,7 +103,7 @@ export function ProposalCard({
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-3 overflow-hidden rounded-2xl border border-line-strong bg-white/[0.02]"
+      className="mt-3 overflow-hidden rounded-2xl border border-line-strong bg-ink/[0.02]"
     >
       <ul className="divide-y divide-line">
         {actions.map((a, i) => {
@@ -115,14 +115,14 @@ export function ProposalCard({
           const clash = !err ? clashFor(a, snap.events) : null;
           return (
             <li key={i}>
-              <label className={`flex items-start gap-3 px-3.5 py-2.5 ${state === "pending" && !err ? "cursor-pointer hover:bg-white/[0.02]" : ""}`}>
+              <label className={`flex items-start gap-3 px-3.5 py-2.5 ${state === "pending" && !err ? "cursor-pointer hover:bg-ink/[0.02]" : ""}`}>
                 {state === "pending" && (
                   <input
                     type="checkbox"
                     disabled={!!err}
                     checked={on[i] && !err}
                     onChange={() => setOn(on.map((v, j) => (j === i ? !v : v)))}
-                    className="mt-1 size-3.5 accent-[#e9c27d]"
+                    className="mt-1 size-3.5 accent-[var(--gold)]"
                   />
                 )}
                 <Icon size={14} className={`mt-[3px] shrink-0 ${danger ? "text-coral" : "text-ice"}`} />
@@ -139,14 +139,14 @@ export function ProposalCard({
           );
         })}
       </ul>
-      <div className="flex items-center justify-between gap-2 border-t border-line bg-white/[0.015] px-3.5 py-2.5">
+      <div className="flex items-center justify-between gap-2 border-t border-line bg-ink/[0.015] px-3.5 py-2.5">
         {state === "pending" ? (
           <>
             <button onClick={() => onResolve("discarded")} className="text-xs text-ink-3 hover:text-ink-2">Discard</button>
             <button
               onClick={apply}
               disabled={!selected.length}
-              className="flex items-center gap-1.5 rounded-lg bg-gold px-3 py-1.5 text-xs font-medium text-[#14110a] disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-lg bg-gold px-3 py-1.5 text-xs font-medium text-on-accent disabled:opacity-40"
             >
               <Check size={13} /> Apply {selected.length} {selected.length === 1 ? "change" : "changes"}
             </button>

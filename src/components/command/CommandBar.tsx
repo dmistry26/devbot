@@ -211,7 +211,7 @@ export function CommandBar() {
           {open && (
             <>
               <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-                <div className="flex items-center gap-1 rounded-xl bg-white/[0.03] p-0.5">
+                <div className="flex items-center gap-1 rounded-xl bg-ink/[0.03] p-0.5">
                   {(Object.keys(AGENTS) as AgentId[]).map((id) => {
                     const a = AGENTS[id];
                     const on = agent === id;
@@ -221,7 +221,7 @@ export function CommandBar() {
                         onClick={() => setAgent(id)}
                         className={`relative flex items-center gap-1.5 rounded-[10px] px-2.5 py-1 text-xs transition-colors ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
                       >
-                        {on && <motion.span layoutId="agent-pill" className="absolute inset-0 rounded-[10px] border border-line-strong bg-white/[0.05]" />}
+                        {on && <motion.span layoutId="agent-pill" className="absolute inset-0 rounded-[10px] border border-line-strong bg-ink/[0.05]" />}
                         <a.Icon size={12} className="relative" style={{ color: on ? a.color : undefined }} />
                         <span className="relative">{a.name}</span>
                       </button>
@@ -353,7 +353,7 @@ export function CommandBar() {
                 type="submit"
                 disabled={!input.trim() || busy}
                 aria-label="Send"
-                className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold text-[#14110a] transition-opacity disabled:opacity-30"
+                className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold text-on-accent transition-opacity disabled:opacity-30"
               >
                 <ArrowUp size={17} strokeWidth={2.2} />
               </button>
@@ -369,7 +369,7 @@ function Message({ m, onResolve }: { m: ChatMessage; onResolve: (p: ProposalStat
   if (m.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-white/[0.06] px-3.5 py-2 text-[14px] leading-relaxed text-ink">
+        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-ink/[0.06] px-3.5 py-2 text-[14px] leading-relaxed text-ink">
           {m.content}
         </div>
       </div>

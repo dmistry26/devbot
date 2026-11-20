@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, MapPin, Plus, Repeat, TriangleAlert } from "lucide-react";
 import { useNow, useStore } from "@/lib/store";
 import { conflictIdsOn, dueOn, layoutDay } from "@/lib/calendar";
-import { addDays, eventsOn, format, formatTime, parseDateKey, timeOf, toDateKey } from "@/lib/dates";
+import { addDays, allDayOn, format, formatTime, parseDateKey, schoolDayOn, timeOf, timedEventsOn, toDateKey } from "@/lib/dates";
 import type { CalendarEvent, Task } from "@/lib/types";
 import { CATEGORY_META } from "@/components/ui/meta";
 import { useUI } from "@/components/ui/ui-store";
@@ -105,14 +105,14 @@ function Calendar({ now }: { now: Date }) {
           <h1 className="font-display text-[38px] leading-none text-ink sm:text-[48px]">{title}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-xl border border-line bg-white/[0.02] p-0.5">
+          <div className="flex rounded-xl border border-line bg-ink/[0.02] p-0.5">
             {VIEWS.map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
                 className={`relative rounded-[10px] px-3 py-1.5 text-xs capitalize transition-colors ${view === v ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
               >
-                {view === v && <motion.span layoutId="cal-view" className="absolute inset-0 rounded-[10px] border border-line-strong bg-white/[0.06]" />}
+                {view === v && <motion.span layoutId="cal-view" className="absolute inset-0 rounded-[10px] border border-line-strong bg-ink/[0.06]" />}
                 <span className="relative">{v}</span>
               </button>
             ))}
@@ -124,7 +124,7 @@ function Calendar({ now }: { now: Date }) {
           </div>
           <button
             onClick={() => useUI.getState().editEvent({ id: "new", ...slotRange(anchor === today ? today : anchor, Math.min(21, Math.max(8, now.getHours() + 1))) })}
-            className="flex items-center gap-1.5 rounded-xl bg-gold px-3 py-1.5 text-xs font-medium text-[#14110a]"
+            className="flex items-center gap-1.5 rounded-xl bg-gold px-3 py-1.5 text-xs font-medium text-on-accent"
           >
             <Plus size={14} /> Event
           </button>
@@ -164,8 +164,9 @@ function MonthView({ anchor, today, events, tasks, onPickDay }: { anchor: string
         {days.map((d, i) => {
           const key = toDateKey(d);
           const inMonth = d.getMonth() === a.getMonth();
-          const evs = eventsOn(events, key);
+          const evs = [...allDayOn(events, key), ...timedEventsOn(events, key)];
           const dues = dueOn(tasks, key);
+          const sd = schoolDayOn(events, key);
           const items = [
             ...dues.filter((t) => t.kind === "deadline").map((t) => ({ kind: "due" as const, t })),
             ...evs.map((e) => ({ kind: "ev" as const, e })),
@@ -180,27 +181,28 @@ function MonthView({ anchor, today, events, tasks, onPickDay }: { anchor: string
             >
               <button
                 onClick={() => onPickDay(key)}
-                className={`mb-1 grid size-6 place-items-center rounded-full text-[11.5px] tabular transition-colors ${key === today ? "bg-gold font-medium text-[#14110a]" : inMonth ? "text-ink-2 hover:bg-white/[0.06]" : "text-ink-4"}`}
+                className={`mb-1 grid size-6 place-items-center rounded-full text-[11.5px] tabular transition-colors ${key === today ? "bg-gold font-medium text-on-accent" : inMonth ? "text-ink-2 hover:bg-ink/[0.06]" : "text-ink-4"}`}
               >
                 {d.getDate()}
               </button>
+              {sd && <span className="absolute right-1.5 top-2 font-mono text-[9px] text-ink-4">{sd.charAt(0)}</span>}
               <div className="space-y-[3px]">
                 {shown.map((it) =>
                   it.kind === "ev" ? (
                     <button
                       key={it.e.id + it.e.start}
                       onClick={() => editEvent({ id: it.e.id })}
-                      className="flex w-full items-center gap-1 truncate rounded-md px-1 py-[1px] text-left text-[10.5px] text-ink-2 hover:bg-white/[0.05]"
+                      className="flex w-full items-center gap-1 truncate rounded-md px-1 py-[1px] text-left text-[10.5px] text-ink-2 hover:bg-ink/[0.05]"
                     >
                       <span className="size-1.5 shrink-0 rounded-full" style={{ background: CATEGORY_META[it.e.category].color }} />
-                      <span className="hidden shrink-0 text-ink-4 tabular sm:inline">{formatTime(timeOf(it.e.start))}</span>
+                      {!it.e.allDay && <span className="hidden shrink-0 text-ink-4 tabular sm:inline">{formatTime(timeOf(it.e.start))}</span>}
                       <span className="truncate">{it.e.title}</span>
                     </button>
                   ) : (
                     <button
                       key={it.t.id}
                       onClick={() => editTask(it.t.id)}
-                      className={`flex w-full items-center gap-1 truncate rounded-md px-1 py-[1px] text-left text-[10.5px] hover:bg-white/[0.05] ${it.t.kind === "deadline" ? "text-coral" : "text-ink-3"}`}
+                      className={`flex w-full items-center gap-1 truncate rounded-md px-1 py-[1px] text-left text-[10.5px] hover:bg-ink/[0.05] ${it.t.kind === "deadline" ? "text-coral" : "text-ink-3"}`}
                     >
                       <span className={`size-[6px] shrink-0 rotate-45 ${it.t.kind === "deadline" ? "bg-coral" : "border border-ink-3"}`} />
                       <span className="truncate">{it.t.title}</span>
@@ -238,7 +240,7 @@ function TimeGrid({ days, now, events, tasks, onPickDay }: { days: string[]; now
   }, [days.join()]);
 
   const layouts = useMemo(() => days.map((d) => ({ d, placed: layoutDay(events, d, START_HOUR, END_HOUR), clashes: conflictIdsOn(events, d) })), [days, events]);
-  const hasAllDay = days.some((d) => dueOn(tasks, d).length);
+  const hasAllDay = days.some((d) => dueOn(tasks, d).length || allDayOn(events, d).length);
   const multi = days.length > 1;
 
   const clickSlot = (day: string, e: React.MouseEvent<HTMLDivElement>) => {
@@ -264,10 +266,11 @@ function TimeGrid({ days, now, events, tasks, onPickDay }: { days: string[]; now
                   key={d}
                   onClick={() => onPickDay?.(d)}
                   disabled={!onPickDay}
-                  className="flex flex-1 flex-col items-center gap-0.5 border-l border-line py-2.5 enabled:hover:bg-white/[0.02]"
+                  className="flex flex-1 flex-col items-center gap-0.5 border-l border-line py-2.5 enabled:hover:bg-ink/[0.02]"
                 >
                   <span className={`eyebrow !text-[9.5px] ${isToday ? "!text-gold" : ""}`}>{format(dt, "EEE")}</span>
-                  <span className={`grid size-8 place-items-center rounded-full font-display text-[20px] leading-none ${isToday ? "bg-gold text-[#14110a]" : "text-ink"}`}>{dt.getDate()}</span>
+                  <span className={`grid size-8 place-items-center rounded-full font-display text-[20px] leading-none ${isToday ? "bg-gold text-on-accent" : "text-ink"}`}>{dt.getDate()}</span>
+                  {schoolDayOn(events, d) && <span className="font-mono text-[9px] text-ink-4">{schoolDayOn(events, d)}</span>}
                 </button>
               );
             })}
@@ -276,19 +279,31 @@ function TimeGrid({ days, now, events, tasks, onPickDay }: { days: string[]; now
           {/* Due today row */}
           {hasAllDay && (
             <div className="flex border-b border-line">
-              <div className="eyebrow flex w-14 shrink-0 items-center justify-end pr-2 !text-[8.5px]">Due</div>
+              <div className="eyebrow flex w-14 shrink-0 items-center justify-end pr-2 !text-[8.5px]">All day</div>
               {days.map((d) => (
                 <div key={d} className="min-w-0 flex-1 space-y-1 border-l border-line p-1">
                   {(() => {
                     const all = dueOn(tasks, d).sort((x, y) => Number(y.kind === "deadline") - Number(x.kind === "deadline"));
-                    const limit = multi ? 3 : 8;
+                    const allDayEvents = allDayOn(events, d);
+                    const limit = Math.max(1, (multi ? 3 : 8) - allDayEvents.length);
                     return (
                       <>
+                  {allDayEvents.map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => editEvent({ id: e.id })}
+                      className="flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-[11px] text-ink"
+                      style={{ background: `color-mix(in srgb, ${CATEGORY_META[e.category].color} 16%, transparent)` }}
+                    >
+                      <span className="size-1.5 shrink-0 rounded-full" style={{ background: CATEGORY_META[e.category].color }} />
+                      <span className="truncate">{e.title}</span>
+                    </button>
+                  ))}
                   {all.slice(0, limit).map((t) => (
                     <button
                       key={t.id}
                       onClick={() => editTask(t.id)}
-                      className={`flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-[11px] ${t.kind === "deadline" ? "bg-coral/10 text-coral" : "bg-white/[0.03] text-ink-2"}`}
+                      className={`flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-[11px] ${t.kind === "deadline" ? "bg-coral/10 text-coral" : "bg-ink/[0.03] text-ink-2"}`}
                     >
                       <span className={`size-[6px] shrink-0 rotate-45 ${t.kind === "deadline" ? "bg-coral" : "border border-ink-3"}`} />
                       <span className="truncate">{t.title}</span>
@@ -382,7 +397,7 @@ function AgendaView({ anchor, today, events, tasks }: { anchor: string; today: s
   const start = anchor < today && parseDateKey(anchor).getMonth() === parseDateKey(today).getMonth() ? today : anchor;
   const days = Array.from({ length: 30 }, (_, i) => toDateKey(addDays(parseDateKey(start), i)));
   const rows = days
-    .map((d) => ({ d, evs: eventsOn(events, d), dues: dueOn(tasks, d), clashes: conflictIdsOn(events, d) }))
+    .map((d) => ({ d, evs: [...allDayOn(events, d), ...timedEventsOn(events, d)], dues: dueOn(tasks, d), clashes: conflictIdsOn(events, d), sd: schoolDayOn(events, d) }))
     .filter((r) => r.evs.length || r.dues.length);
 
   if (!rows.length)
@@ -395,7 +410,7 @@ function AgendaView({ anchor, today, events, tasks }: { anchor: string; today: s
 
   return (
     <div className="space-y-3">
-      {rows.map(({ d, evs, dues, clashes }) => {
+      {rows.map(({ d, evs, dues, clashes, sd }) => {
         const dt = parseDateKey(d);
         const rel = d === today ? "Today" : d === toDateKey(addDays(parseDateKey(today), 1)) ? "Tomorrow" : null;
         return (
@@ -403,12 +418,12 @@ function AgendaView({ anchor, today, events, tasks }: { anchor: string; today: s
             <div className="w-28 shrink-0">
               <div className={`font-display text-[28px] leading-none ${d === today ? "text-gold" : "text-ink"}`}>{format(dt, "d")}</div>
               <div className="eyebrow mt-1">{format(dt, "EEE · MMM")}</div>
-              {rel && <div className="mt-1 text-[11px] text-ink-3">{rel}</div>}
+              {(rel || sd) && <div className="mt-1 text-[11px] text-ink-3">{[rel, sd].filter(Boolean).join(" · ")}</div>}
             </div>
             <ul className="min-w-0 flex-1 space-y-1.5">
               {dues.map((t) => (
                 <li key={t.id}>
-                  <button onClick={() => editTask(t.id)} className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-white/[0.03]">
+                  <button onClick={() => editTask(t.id)} className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-ink/[0.03]">
                     <span className="w-24 shrink-0 font-mono text-[10.5px] tabular text-coral/90">{t.dueTime ? `Due ${formatTime(t.dueTime)}` : "Due"}</span>
                     <span className={`size-[7px] shrink-0 rotate-45 ${t.kind === "deadline" ? "bg-coral" : "border border-ink-3"}`} />
                     <span className={`truncate text-sm ${t.kind === "deadline" ? "text-ink" : "text-ink-2"}`}>{t.title}</span>
@@ -418,8 +433,8 @@ function AgendaView({ anchor, today, events, tasks }: { anchor: string; today: s
               ))}
               {evs.map((e) => (
                 <li key={e.id + e.start}>
-                  <button onClick={() => editEvent({ id: e.id })} className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-white/[0.03]">
-                    <span className="w-24 shrink-0 font-mono text-[10.5px] tabular text-ink-3">{formatTime(timeOf(e.start))}–{formatTime(timeOf(e.end))}</span>
+                  <button onClick={() => editEvent({ id: e.id })} className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-ink/[0.03]">
+                    <span className="w-24 shrink-0 font-mono text-[10.5px] tabular text-ink-3">{e.allDay ? "All day" : `${formatTime(timeOf(e.start))}–${formatTime(timeOf(e.end))}`}</span>
                     <span className="size-2 shrink-0 rounded-full" style={{ background: CATEGORY_META[e.category].color }} />
                     <span className="truncate text-sm text-ink">{e.title}</span>
                     {clashes.has(e.id) && <TriangleAlert size={12} className="shrink-0 text-amber" aria-label="Overlaps another event" />}

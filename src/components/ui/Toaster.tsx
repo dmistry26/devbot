@@ -36,7 +36,7 @@ export function Toaster() {
                   dismiss(t.id);
                   if (e) toast({ text: `Undid: ${e.label}` });
                 }}
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-gold transition-colors hover:bg-white/[0.05]"
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-gold transition-colors hover:bg-ink/[0.05]"
               >
                 <Undo2 size={13} /> Undo
               </button>

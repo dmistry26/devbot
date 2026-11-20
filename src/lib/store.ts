@@ -8,7 +8,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useSyncExternalStore } from "react";
 import { applyActions, type Action } from "./actions";
-import type { HistoryEntry, Profile, Snapshot } from "./types";
+import type { CalendarEvent, CalendarSubscription, HistoryEntry, Profile, Snapshot } from "./types";
 import { toDateKey, toDateTime } from "./dates";
 import { mergeSchoolItems } from "./school/merge";
 import type { SchoolCourse, SchoolItem } from "./school/types";
@@ -34,6 +34,12 @@ interface State extends Snapshot {
   school: SchoolState;
   setSchool: (p: Partial<SchoolState>) => void;
   importSchool: (items: SchoolItem[], courses: SchoolCourse[]) => { added: number; updated: number };
+  calendars: CalendarSubscription[];
+  addCalendar: (c: Omit<CalendarSubscription, "id" | "lastSync" | "error" | "enabled">) => string;
+  updateCalendar: (id: string, p: Partial<CalendarSubscription>) => void;
+  removeCalendar: (id: string) => void;
+  /** Replace all events from one subscription (feed refreshes aren't undoable changes). */
+  setCalendarEvents: (id: string, events: CalendarEvent[]) => void;
 }
 
 const empty: Snapshot = { tasks: [], events: [], projects: [], notes: [] };
@@ -77,13 +83,40 @@ export const useStore = create<State>()(
         return entry.id;
       },
       undo: () => {
-        const [last, ...rest] = get().history;
+        const s = get();
+        const [last, ...rest] = s.history;
         if (!last) return null;
-        set({ ...last.before, history: rest });
+        // Feed events are refreshed outside of history; keep the current ones.
+        const feed = s.events.filter((e) => e.subscriptionId);
+        set({ ...last.before, events: [...last.before.events.filter((e) => !e.subscriptionId), ...feed], history: rest });
         return last;
       },
       setProfile: (p) => set({ profile: { ...get().profile, ...p } }),
       school: { days: {}, courses: [], lastSync: null, dismissed: [] },
+      calendars: [],
+      addCalendar: (c) => {
+        const id = `cal-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        set({ calendars: [...get().calendars, { ...c, id, enabled: true, lastSync: null, error: null }] });
+        return id;
+      },
+      updateCalendar: (id, p) => {
+        const s = get();
+        const calendars = s.calendars.map((c) => (c.id === id ? { ...c, ...p } : c));
+        // Recolor or hide that calendar's events right away.
+        const cal = calendars.find((c) => c.id === id);
+        let events = s.events;
+        if (cal && p.category) events = events.map((e) => (e.subscriptionId === id ? { ...e, category: cal.category } : e));
+        if (cal && p.enabled === false) events = events.filter((e) => e.subscriptionId !== id);
+        set({ calendars, events });
+      },
+      removeCalendar: (id) => {
+        const s = get();
+        set({ calendars: s.calendars.filter((c) => c.id !== id), events: s.events.filter((e) => e.subscriptionId !== id) });
+      },
+      setCalendarEvents: (id, incoming) => {
+        const s = get();
+        set({ events: [...s.events.filter((e) => e.subscriptionId !== id), ...incoming] });
+      },
       setSchool: (p) => set({ school: { ...get().school, ...p } }),
       importSchool: (items, courses) => {
         const s = get();
@@ -121,7 +154,8 @@ export const useStore = create<State>()(
       name: "devbot.v1",
       storage: createJSONStorage(() => localStorage),
       version: 1,
-      partialize: ({ tasks, events, projects, notes, profile, history, school }) => ({
+      partialize: ({ tasks, events, projects, notes, profile, history, school, calendars }) => ({
+        calendars,
         tasks,
         events,
         projects,

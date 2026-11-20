@@ -1,8 +1,8 @@
 import type { Category, Priority } from "@/lib/types";
 
 export const CATEGORY_META: Record<Category, { label: string; color: string }> = {
-  academic: { label: "Academic", color: "var(--ice)" },
-  project: { label: "Project", color: "var(--gold)" },
+  academic: { label: "Academic", color: "var(--cat-blue)" },
+  project: { label: "Project", color: "var(--cat-gold)" },
   personal: { label: "Personal", color: "var(--sage)" },
   health: { label: "Health", color: "var(--rose)" },
   social: { label: "Social", color: "var(--violet)" },

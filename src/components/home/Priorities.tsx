@@ -53,7 +53,7 @@ export function TaskRow({ task, now }: { task: Task; now: Date }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0, marginTop: 0 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="group relative flex items-start gap-3.5 rounded-2xl px-3 py-3 transition-colors hover:bg-white/[0.025]"
+      className="group relative flex items-start gap-3.5 rounded-2xl px-3 py-3 transition-colors hover:bg-ink/[0.025]"
     >
       <div className="pt-[1px]">
         <Check checked={done} onChange={toggle} label={`Complete ${task.title}`} />
@@ -117,7 +117,7 @@ function IconBtn({ children, label, onClick, danger }: { children: React.ReactNo
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`grid size-7 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-white/[0.05] ${danger ? "hover:text-coral" : "hover:text-ink"}`}
+      className={`grid size-7 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-ink/[0.05] ${danger ? "hover:text-coral" : "hover:text-ink"}`}
     >
       {children}
     </button>
@@ -163,7 +163,7 @@ export function Priorities({ now, onLoadSample }: { now: Date; onLoadSample: () 
           right={
             <button
               onClick={() => editTask("new")}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:bg-white/[0.04] hover:text-ink"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:bg-ink/[0.04] hover:text-ink"
             >
               <Plus size={13} /> Task
             </button>
@@ -182,7 +182,7 @@ export function Priorities({ now, onLoadSample }: { now: Date; onLoadSample: () 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               onClick={() => openCommand("Brain dump: ")}
-              className="ai-ring rounded-xl px-4 py-2 text-sm text-ink transition-colors hover:bg-white/[0.04]"
+              className="ai-ring rounded-xl px-4 py-2 text-sm text-ink transition-colors hover:bg-ink/[0.04]"
             >
               Start a brain dump
             </button>

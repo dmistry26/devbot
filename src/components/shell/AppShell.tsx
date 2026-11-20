@@ -20,6 +20,8 @@ import { Toaster } from "@/components/ui/Toaster";
 import { TaskEditor } from "@/components/ui/TaskEditor";
 import { EventEditor } from "@/components/ui/EventEditor";
 import { useUI } from "@/components/ui/ui-store";
+import { useSystemThemeSync } from "@/lib/theme";
+import { ThemeToggle } from "@/components/settings/AppearanceSettings";
 
 const NAV = [
   { href: "/", label: "Home", icon: House },
@@ -35,9 +37,9 @@ export function Mark({ size = 22 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f4dcae" />
-          <stop offset="0.55" stopColor="#e9c27d" />
-          <stop offset="1" stopColor="#8fc2ff" />
+          <stop offset="0" style={{ stopColor: "var(--accent-hi)" }} />
+          <stop offset="0.55" style={{ stopColor: "var(--gold)" }} />
+          <stop offset="1" style={{ stopColor: "var(--ice)" }} />
         </linearGradient>
       </defs>
       <rect x="4.5" y="4.5" width="15" height="15" rx="4" transform="rotate(45 12 12)" fill="none" stroke={`url(#${id})`} strokeWidth="1.4" />
@@ -56,7 +58,7 @@ function RailLink({ href, label, Icon, active }: { href: string; label: string; 
       {active && (
         <motion.span
           layoutId="rail-active"
-          className="absolute inset-0 rounded-xl border border-line-strong bg-white/[0.045]"
+          className="absolute inset-0 rounded-xl border border-line-strong bg-ink/[0.045]"
           transition={{ type: "spring", stiffness: 500, damping: 40 }}
         />
       )}
@@ -70,6 +72,7 @@ function RailLink({ href, label, Icon, active }: { href: string; label: string; 
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  useSystemThemeSync();
   const openCommand = useUI((s) => s.openCommand);
   // The menu is "open for a path", so navigating closes it without an effect.
   const [menuPath, setMenuPath] = useState<string | null>(null);
@@ -94,10 +97,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => openCommand()}
             aria-label="Ask devbot"
-            className="ai-ring grid size-10 place-items-center rounded-xl text-ice transition-colors hover:bg-white/[0.04]"
+            className="ai-ring grid size-10 place-items-center rounded-xl text-ice transition-colors hover:bg-ink/[0.04]"
           >
             <Sparkles size={17} strokeWidth={1.6} />
           </button>
+          <ThemeToggle />
           <RailLink href="/settings" label="Settings" Icon={Settings} active={isActive("/settings")} />
         </div>
       </nav>
@@ -128,7 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={n.href}
                 href={n.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${isActive(n.href) ? "bg-white/[0.05] text-ink" : "text-ink-2"}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${isActive(n.href) ? "bg-ink/[0.05] text-ink" : "text-ink-2"}`}
               >
                 <n.icon size={16} strokeWidth={1.6} /> {n.label}
               </Link>

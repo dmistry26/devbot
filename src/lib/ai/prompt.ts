@@ -84,7 +84,9 @@ export function buildContext(data: Snapshot, nowLocal: string): string {
     any = true;
     lines.push(`${format(addDays(now, i), "EEE")} ${day}:`);
     for (const e of evs) {
-      const bits = [`  [${e.id}] ${e.start.slice(11)}–${e.end.slice(11)} ${e.title}`, e.category];
+      const when = e.allDay ? "all day" : `${e.start.slice(11)}–${e.end.slice(11)}`;
+      const bits = [`  [${e.id}] ${when} ${e.title}`, e.category];
+      if (e.subscriptionId) bits.push("school calendar, read-only");
       if (e.location) bits.push(`@ ${e.location}`);
       if (e.recurrence) bits.push(`repeats ${e.recurrence.freq}`);
       if (e.taskId) bits.push(`focus block for task ${e.taskId}`);

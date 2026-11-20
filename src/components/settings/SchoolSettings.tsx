@@ -72,7 +72,7 @@ export function SchoolSettings() {
             <li>On learn.vcs.net, click your profile picture → <span className="text-ink-2">Preferences</span> → <span className="text-ink-2">Security keys</span>.</li>
             <li>Copy the key in the <span className="text-ink-2">Moodle mobile web service</span> row.</li>
             <li>
-              In <code className="rounded bg-white/[0.05] px-1 text-[12px]">.env.local</code>, add:
+              In <code className="rounded bg-ink/[0.05] px-1 text-[12px]">.env.local</code>, add:
               <pre className="mt-1.5 overflow-x-auto rounded-lg border border-line bg-black/30 p-2.5 font-mono text-[12px] text-ink-2">{`MOODLE_URL=https://learn.vcs.net\nMOODLE_TOKEN=your-key-here`}</pre>
             </li>
             <li>Restart devbot, then press <span className="text-ink-2">Sync now</span>.</li>
@@ -95,12 +95,12 @@ export function SchoolSettings() {
                   {c.sampleDates.length < 2 ? (
                     <span className="shrink-0 px-2.5 py-1 text-xs text-ink-4">One date per class</span>
                   ) : (
-                  <div className="flex shrink-0 rounded-lg bg-white/[0.03] p-0.5 text-xs">
+                  <div className="flex shrink-0 rounded-lg bg-ink/[0.03] p-0.5 text-xs">
                     {([0, 1] as const).map((d) => (
                       <button
                         key={d}
                         onClick={() => setDay(c.id, d)}
-                        className={`rounded-md px-2.5 py-1 transition-colors ${day === d ? "bg-white/[0.08] text-ink" : "text-ink-3 hover:text-ink-2"}`}
+                        className={`rounded-md px-2.5 py-1 transition-colors ${day === d ? "bg-ink/[0.08] text-ink" : "text-ink-3 hover:text-ink-2"}`}
                       >
                         {d === 0 ? (a ? short(a) : "1st date") : b ? short(b) : "2nd date"}
                       </button>

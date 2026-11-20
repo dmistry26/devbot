@@ -42,7 +42,7 @@ export function Check({
         <motion.path
           d="M3.5 8.5l3 3 6-7"
           fill="none"
-          stroke="#0a0a0c"
+          stroke="var(--on-accent)"
           strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -95,7 +95,7 @@ export function PriorityBars({ priority }: { priority: Priority }) {
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded-[5px] border border-line-strong bg-white/[0.03] px-1.5 py-[1px] font-mono text-[10.5px] text-ink-3">
+    <kbd className="rounded-[5px] border border-line-strong bg-ink/[0.03] px-1.5 py-[1px] font-mono text-[10.5px] text-ink-3">
       {children}
     </kbd>
   );
@@ -122,5 +122,5 @@ export function SectionHeader({
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-white/[0.03] ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-ink/[0.03] ${className}`} />;
 }

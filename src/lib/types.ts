@@ -16,7 +16,7 @@ export type Category =
 
 export type TaskStatus = "todo" | "done";
 export type TaskKind = "task" | "deadline";
-export type Source = "manual" | "ai" | "school" | "sample";
+export type Source = "manual" | "ai" | "school" | "sample" | "calendar";
 
 export interface Task {
   id: string;
@@ -59,8 +59,22 @@ export interface CalendarEvent {
   recurrence: Recurrence | null;
   taskId: string | null; // set when this is a focus block for a task
   source: Source;
+  /** All-day event: start is the first day at T00:00, end is the day after the last day at T00:00. */
+  allDay?: boolean;
+  /** Set for read-only events that come from a subscribed calendar feed. */
+  subscriptionId?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CalendarSubscription {
+  id: string;
+  name: string;
+  url: string;
+  category: Category;
+  enabled: boolean;
+  lastSync: string | null; // ISO
+  error: string | null;
 }
 
 export type ProjectStatus = "active" | "paused" | "done";

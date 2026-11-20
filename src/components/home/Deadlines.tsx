@@ -30,7 +30,7 @@ export function Deadlines({ now }: { now: Date }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05, duration: 0.4 }}
-                className="group relative flex w-[188px] shrink-0 snap-start flex-col rounded-2xl border border-line bg-white/[0.015] p-4 transition-colors hover:border-line-strong"
+                className="group relative flex w-[188px] shrink-0 snap-start flex-col rounded-2xl border border-line bg-ink/[0.015] p-4 transition-colors hover:border-line-strong"
               >
                 <button onClick={() => editTask(task.id)} className="text-left">
                   <div className="flex items-baseline gap-1.5">

@@ -22,7 +22,7 @@ interface Draft {
 }
 
 const field =
-  "w-full rounded-xl border border-line bg-white/[0.025] px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-line-strong";
+  "w-full rounded-xl border border-line bg-ink/[0.025] px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-line-strong";
 
 function initialDraft(task: Task | null | undefined): Draft {
   return task
@@ -190,7 +190,7 @@ function EditorDialog({ id }: { id: string }) {
                   style={{
                     borderColor: d.priority === p ? PRIORITY_META[p].color : "var(--line)",
                     color: d.priority === p ? "var(--ink)" : "var(--ink-3)",
-                    background: d.priority === p ? "rgba(255,255,255,0.04)" : "transparent",
+                    background: d.priority === p ? "color-mix(in srgb, var(--ink) 5%, transparent)" : "transparent",
                   }}
                 >
                   {PRIORITY_META[p].label}
@@ -202,7 +202,7 @@ function EditorDialog({ id }: { id: string }) {
                   type="button"
                   key={k}
                   onClick={() => setD({ ...d, kind: k })}
-                  className={`rounded-full border px-3 py-1 text-xs capitalize transition-colors ${d.kind === k ? "border-line-strong bg-white/[0.04] text-ink" : "border-line text-ink-3"}`}
+                  className={`rounded-full border px-3 py-1 text-xs capitalize transition-colors ${d.kind === k ? "border-line-strong bg-ink/[0.04] text-ink" : "border-line text-ink-3"}`}
                 >
                   {k}
                 </button>
@@ -260,7 +260,7 @@ function EditorDialog({ id }: { id: string }) {
               <button
                 type="submit"
                 disabled={!d.title.trim()}
-                className="rounded-xl bg-gold px-5 py-2 text-sm font-medium text-[#14110a] transition-opacity disabled:opacity-40"
+                className="rounded-xl bg-gold px-5 py-2 text-sm font-medium text-on-accent transition-opacity disabled:opacity-40"
               >
                 {task ? "Save" : "Add task"}
               </button>

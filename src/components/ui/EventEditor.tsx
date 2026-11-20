@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Repeat, Trash2, TriangleAlert, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { findConflicts } from "@/lib/calendar";
-import { format, formatTime, parseDateKey, parseDateTime, timeOf, toDateTime } from "@/lib/dates";
+import { addDays, format, formatTime, parseDateKey, parseDateTime, timeOf, toDateTime } from "@/lib/dates";
 import { CATEGORIES, type CalendarEvent, type Category, type RecurrenceFreq } from "@/lib/types";
 import { CATEGORY_META } from "./meta";
 import { useUI } from "./ui-store";
@@ -23,7 +23,7 @@ interface Draft {
 }
 
 const field =
-  "w-full rounded-xl border border-line bg-white/[0.025] px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-line-strong";
+  "w-full rounded-xl border border-line bg-ink/[0.025] px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-line-strong";
 
 const REPEATS: { value: Draft["repeat"]; label: string }[] = [
   { value: "none", label: "Doesn't repeat" },
@@ -71,8 +71,58 @@ export function EventEditor() {
   }, []);
   return (
     <AnimatePresence>
-      {target && <EventDialog key={`${target.id}:${target.nonce}`} target={target} />}
+      {target && <EventDialogSwitch key={`${target.id}:${target.nonce}`} target={target} />}
     </AnimatePresence>
+  );
+}
+
+function EventDialogSwitch({ target }: { target: { id: string; start?: string; end?: string } }) {
+  const ev = useStore((s) => s.events.find((e) => e.id === target.id));
+  return ev?.subscriptionId ? <FeedEventDialog ev={ev} /> : <EventDialog target={target} />;
+}
+
+/** Events from subscribed calendars are read-only: show details instead of an editor. */
+function FeedEventDialog({ ev }: { ev: CalendarEvent }) {
+  const close = () => useUI.getState().editEvent(null);
+  const cal = useStore((s) => s.calendars.find((c) => c.id === ev.subscriptionId));
+  const startDay = parseDateKey(ev.start.slice(0, 10));
+  const lastDay = ev.allDay ? addDays(parseDateKey(ev.end.slice(0, 10)), -1) : startDay;
+  const when = ev.allDay
+    ? lastDay.getTime() > startDay.getTime()
+      ? `${format(startDay, "EEE, MMM d")} – ${format(lastDay, "EEE, MMM d")} · all day`
+      : `${format(startDay, "EEEE, MMMM d")} · all day`
+    : `${format(startDay, "EEEE, MMMM d")} · ${formatTime(timeOf(ev.start))}–${formatTime(timeOf(ev.end))}`;
+  return (
+    <motion.div
+      className="fixed inset-0 z-40 grid place-items-end bg-black/50 p-3 backdrop-blur-sm sm:place-items-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onMouseDown={(e) => e.target === e.currentTarget && close()}
+    >
+      <motion.div
+        initial={{ y: 24, opacity: 0, scale: 0.98 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 16, opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="glass w-full max-w-md rounded-3xl p-5 sm:p-6"
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <span className="eyebrow flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full" style={{ background: CATEGORY_META[ev.category].color }} />
+            {cal?.name ?? "Subscribed calendar"}
+          </span>
+          <button type="button" onClick={close} aria-label="Close" className="text-ink-3 hover:text-ink">
+            <X size={18} />
+          </button>
+        </div>
+        <h3 className="font-display text-[28px] leading-tight text-ink">{ev.title}</h3>
+        <p className="mt-2 text-sm text-ink-2">{when}</p>
+        {ev.location && <p className="mt-1 text-sm text-ink-3">{ev.location}</p>}
+        {ev.description && <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-ink-3">{ev.description}</p>}
+        <p className="mt-5 text-[12px] text-ink-4">This comes from a subscribed calendar, so it can&apos;t be edited here. Manage calendars in Settings.</p>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -218,7 +268,7 @@ function EventDialog({ target }: { target: { id: string; start?: string; end?: s
                     type="button"
                     key={c}
                     onClick={() => setD({ ...d, category: c })}
-                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${d.category === c ? "border-line-strong bg-white/[0.05] text-ink" : "border-line text-ink-3"}`}
+                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${d.category === c ? "border-line-strong bg-ink/[0.05] text-ink" : "border-line text-ink-3"}`}
                   >
                     <span className="size-1.5 rounded-full" style={{ background: CATEGORY_META[c].color }} />
                     {CATEGORY_META[c].label}
@@ -246,7 +296,7 @@ function EventDialog({ target }: { target: { id: string; start?: string; end?: s
           ) : (
             <span />
           )}
-          <button type="submit" disabled={!valid} className="rounded-xl bg-gold px-5 py-2 text-sm font-medium text-[#14110a] transition-opacity disabled:opacity-40">
+          <button type="submit" disabled={!valid} className="rounded-xl bg-gold px-5 py-2 text-sm font-medium text-on-accent transition-opacity disabled:opacity-40">
             {existing ? "Save" : "Add event"}
           </button>
         </div>

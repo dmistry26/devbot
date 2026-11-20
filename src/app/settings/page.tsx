@@ -5,6 +5,8 @@ import { useHydrated, useStore } from "@/lib/store";
 import { useChat } from "@/components/command/chat-store";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SchoolSettings } from "@/components/settings/SchoolSettings";
+import { CalendarSettings } from "@/components/settings/CalendarSettings";
+import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { useUI } from "@/components/ui/ui-store";
 
 export default function SettingsPage() {
@@ -34,12 +36,16 @@ export default function SettingsPage() {
             <input
               defaultValue={name}
               onBlur={(e) => setProfile({ name: e.target.value.trim() })}
-              className="w-full max-w-xs rounded-xl border border-line bg-white/[0.025] px-3 py-2 text-sm text-ink outline-none focus:border-line-strong"
+              className="w-full max-w-xs rounded-xl border border-line bg-ink/[0.025] px-3 py-2 text-sm text-ink outline-none focus:border-line-strong"
             />
           </label>
         </section>
 
+        <AppearanceSettings />
+
         <SchoolSettings />
+
+        <CalendarSettings />
 
         <section className="panel p-6">
           <h2 className="eyebrow mb-4">Your data</h2>
@@ -49,7 +55,7 @@ export default function SettingsPage() {
           {confirm ? (
             <div className="mt-4 flex items-center gap-3">
               <span className="text-sm text-coral">Erase everything in this browser?</span>
-              <button onClick={erase} className="rounded-lg bg-coral px-3 py-1.5 text-xs font-medium text-black">Erase</button>
+              <button onClick={erase} className="rounded-lg bg-coral px-3 py-1.5 text-xs font-medium text-on-accent">Erase</button>
               <button onClick={() => setConfirm(false)} className="text-xs text-ink-3">Cancel</button>
             </div>
           ) : (

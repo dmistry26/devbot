@@ -1,10 +1,15 @@
 @import "tailwindcss";
 
 /* ───────────────────────── devbot design tokens ─────────────────────────
-   Obsidian base, champagne-gold for "you", ice-blue for "AI".
-   Hairlines instead of heavy borders; glass only where it earns depth. */
+   Two layers:
+   1. Theme (data-theme="dark" | "light"): surfaces, ink, lines, status colors.
+   2. Colorway (data-accent): --gold is "you" (primary accent), --ice is the AI.
+   The variable names are historical; read --gold as "accent" and --ice as "ai".
+   Applied before first paint by the inline script in app/layout.tsx. */
 
-:root {
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #06070a;
   --bg-raise: #0b0d12;
   --panel: rgba(255, 255, 255, 0.022);
@@ -16,18 +21,124 @@
   --ink-3: #6c6b66;
   --ink-4: #45443f;
 
-  --gold: #e9c27d;
-  --gold-soft: rgba(233, 194, 125, 0.12);
-  --ice: #8fc2ff;
-  --ice-soft: rgba(143, 194, 255, 0.12);
   --coral: #ff7f6e;
   --amber: #f2b45a;
   --sage: #8fd3b0;
   --rose: #ff9bb3;
   --violet: #b9a4ff;
+  /* Category colors stay the same across colorways. */
+  --cat-blue: #8fc2ff;
+  --cat-gold: #e9c27d;
+
+  --panel-top: rgba(255, 255, 255, 0.035);
+  --panel-bottom: rgba(255, 255, 255, 0.012);
+  --panel-inset: rgba(255, 255, 255, 0.045);
+  --panel-shadow: 0 30px 60px -40px rgba(0, 0, 0, 0.8);
+  --glass: rgba(14, 16, 22, 0.72);
+  --glass-inset: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 24px 80px -20px rgba(0, 0, 0, 0.9);
+  --grid-line: rgba(255, 255, 255, 0.025);
+  --grain: 0.035;
+  --aurora-strength: 16%;
+  --scrollbar: rgba(255, 255, 255, 0.1);
+
+  /* Colorway: Champagne (default) */
+  --gold: #e9c27d;
+  --accent-hi: #f6e2b8;
+  --ice: #8fc2ff;
+  --on-accent: #14110a;
 
   --radius: 18px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f2ec;
+  --bg-raise: #ffffff;
+  --panel: rgba(20, 18, 10, 0.02);
+  --panel-hover: rgba(20, 18, 10, 0.04);
+  --line: rgba(30, 26, 16, 0.09);
+  --line-strong: rgba(30, 26, 16, 0.16);
+  --ink: #1c1b17;
+  --ink-2: #4f4d46;
+  --ink-3: #7d7a71;
+  --ink-4: #aaa79d;
+
+  --coral: #d9493a;
+  --amber: #b9741a;
+  --sage: #2f8a5f;
+  --rose: #c8406c;
+  --violet: #6a4fd1;
+  --cat-blue: #2c6ccf;
+  --cat-gold: #a8741f;
+
+  --panel-top: rgba(255, 255, 255, 0.9);
+  --panel-bottom: rgba(255, 255, 255, 0.62);
+  --panel-inset: rgba(255, 255, 255, 1);
+  --panel-shadow: 0 1px 2px rgba(40, 30, 10, 0.04), 0 24px 48px -32px rgba(40, 30, 10, 0.22);
+  --glass: rgba(255, 255, 255, 0.82);
+  --glass-inset: rgba(255, 255, 255, 1);
+  --glass-shadow: 0 24px 70px -24px rgba(40, 30, 10, 0.3);
+  --grid-line: rgba(30, 26, 16, 0.045);
+  --grain: 0.025;
+  --aurora-strength: 22%;
+  --scrollbar: rgba(30, 26, 16, 0.18);
+
+  --gold: #a8741f;
+  --accent-hi: #d9a94e;
+  --ice: #2c6ccf;
+  --on-accent: #ffffff;
+}
+
+/* ── Colorways. Dark values first, then light-theme overrides for contrast. ── */
+:root[data-accent="aurora"] {
+  --gold: #b9a4ff;
+  --accent-hi: #e2d8ff;
+  --ice: #5ee0c8;
+  --on-accent: #120d24;
+}
+:root[data-theme="light"][data-accent="aurora"] {
+  --gold: #6a4fd1;
+  --accent-hi: #9b84ff;
+  --ice: #0f8f7b;
+  --on-accent: #ffffff;
+}
+:root[data-accent="ember"] {
+  --gold: #ff9a62;
+  --accent-hi: #ffd0b0;
+  --ice: #ff8fb1;
+  --on-accent: #1d0d05;
+}
+:root[data-theme="light"][data-accent="ember"] {
+  --gold: #c8561c;
+  --accent-hi: #f08a4b;
+  --ice: #c8406c;
+  --on-accent: #ffffff;
+}
+:root[data-accent="verdant"] {
+  --gold: #8fdca4;
+  --accent-hi: #cdf3d6;
+  --ice: #7cc8ff;
+  --on-accent: #07170c;
+}
+:root[data-theme="light"][data-accent="verdant"] {
+  --gold: #2f8a5f;
+  --accent-hi: #5dbb87;
+  --ice: #2a72c9;
+  --on-accent: #ffffff;
+}
+:root[data-accent="mono"] {
+  --gold: #e4e4e7;
+  --accent-hi: #ffffff;
+  --ice: #a9b8cf;
+  --on-accent: #0b0b0d;
+}
+:root[data-theme="light"][data-accent="mono"] {
+  --gold: #27272a;
+  --accent-hi: #52525b;
+  --ice: #4b5d7a;
+  --on-accent: #ffffff;
 }
 
 @theme inline {
@@ -41,6 +152,7 @@
   --color-ink-3: var(--ink-3);
   --color-ink-4: var(--ink-4);
   --color-gold: var(--gold);
+  --color-on-accent: var(--on-accent);
   --color-ice: var(--ice);
   --color-coral: var(--coral);
   --color-amber: var(--amber);
@@ -54,7 +166,6 @@
 }
 
 html {
-  color-scheme: dark;
   background: var(--bg);
 }
 
@@ -67,7 +178,7 @@ body {
 }
 
 ::selection {
-  background: rgba(233, 194, 125, 0.28);
+  background: color-mix(in srgb, var(--gold) 30%, transparent);
 }
 
 /* Atmosphere: two slow auroras + faint grid + grain. Fixed behind everything. */
@@ -92,29 +203,29 @@ body {
   height: 44vw;
   left: -14vw;
   top: -26vw;
-  background: radial-gradient(closest-side, rgba(233, 194, 125, 0.16), transparent);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gold) var(--aurora-strength), transparent), transparent);
 }
 .atmosphere::after {
   width: 54vw;
   height: 40vw;
   right: -16vw;
   top: -18vw;
-  background: radial-gradient(closest-side, rgba(143, 194, 255, 0.13), transparent);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ice) var(--aurora-strength), transparent), transparent);
   animation-delay: -12s;
 }
 .atmosphere .grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black, transparent 75%);
 }
 .atmosphere .grain {
   position: absolute;
   inset: -50%;
-  opacity: 0.035;
+  opacity: var(--grain);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 @keyframes drift {
@@ -126,22 +237,22 @@ body {
 /* Panels: hairline border with a top highlight, very light fill. */
 .panel {
   position: relative;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-bottom));
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 30px 60px -40px rgba(0, 0, 0, 0.8);
+    inset 0 1px 0 var(--panel-inset),
+    var(--panel-shadow);
 }
 
 .glass {
-  background: rgba(14, 16, 22, 0.72);
+  background: var(--glass);
   backdrop-filter: blur(22px) saturate(140%);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
   border: 1px solid var(--line-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 24px 80px -20px rgba(0, 0, 0, 0.9);
+    inset 0 1px 0 var(--glass-inset),
+    var(--glass-shadow);
 }
 
 /* Small caps label used for section headers. */
@@ -176,10 +287,10 @@ body {
   padding: 1px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    rgba(143, 194, 255, 0.5),
-    rgba(233, 194, 125, 0.45),
-    rgba(255, 255, 255, 0.08),
-    rgba(143, 194, 255, 0.5)
+    color-mix(in srgb, var(--ice) 55%, transparent),
+    color-mix(in srgb, var(--gold) 50%, transparent),
+    var(--line),
+    color-mix(in srgb, var(--ice) 55%, transparent)
   );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -202,7 +313,7 @@ body {
 
 .scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 input,
@@ -213,7 +324,7 @@ select {
 
 @layer base {
   :focus-visible {
-    outline: 1.5px solid rgba(233, 194, 125, 0.6);
+    outline: 1.5px solid color-mix(in srgb, var(--gold) 65%, transparent);
     outline-offset: 2px;
   }
 }

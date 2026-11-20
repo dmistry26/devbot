@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { daySummary, todaysTasks } from "@/lib/derive";
-import { format, greetingFor, toDateKey } from "@/lib/dates";
+import { format, greetingFor, schoolDayOn, toDateKey } from "@/lib/dates";
 
 function DayDial({ done, total, now }: { done: number; total: number; now: Date }) {
   const mins = now.getHours() * 60 + now.getMinutes();
@@ -20,11 +20,11 @@ function DayDial({ done, total, now }: { done: number; total: number; now: Date 
       <svg viewBox="0 0 140 140" className="size-full -rotate-90">
         <defs>
           <linearGradient id="dial-gold" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#f6e2b8" />
-            <stop offset="1" stopColor="#e9c27d" />
+            <stop offset="0" style={{ stopColor: "var(--accent-hi)" }} />
+            <stop offset="1" style={{ stopColor: "var(--gold)" }} />
           </linearGradient>
         </defs>
-        <circle cx="70" cy="70" r={R2} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1.5" />
+        <circle cx="70" cy="70" r={R2} fill="none" stroke="var(--line)" strokeWidth="1.5" />
         <motion.circle
           cx="70" cy="70" r={R2} fill="none" stroke="var(--ice)" strokeWidth="1.5" strokeLinecap="round"
           strokeDasharray={c2}
@@ -33,14 +33,14 @@ function DayDial({ done, total, now }: { done: number; total: number; now: Date 
           transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
           opacity={0.7}
         />
-        <circle cx="70" cy="70" r={R1} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <circle cx="70" cy="70" r={R1} fill="none" stroke="var(--line)" strokeWidth="6" />
         <motion.circle
           cx="70" cy="70" r={R1} fill="none" stroke="url(#dial-gold)" strokeWidth="6" strokeLinecap="round"
           strokeDasharray={c1}
           initial={{ strokeDashoffset: c1 }}
           animate={{ strokeDashoffset: c1 * (1 - taskPct) }}
           transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-          style={{ filter: "drop-shadow(0 0 6px rgba(233,194,125,0.45))" }}
+          style={{ filter: "drop-shadow(0 0 6px color-mix(in srgb, var(--gold) 45%, transparent))" }}
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
@@ -62,6 +62,7 @@ export function Greeting({ now }: { now: Date }) {
   const setProfile = useStore((s) => s.setProfile);
   const [draft, setDraft] = useState("");
   const today = toDateKey(now);
+  const schoolDay = schoolDayOn(data.events, today);
   const list = todaysTasks(data.tasks, today);
   const done = list.filter((t) => t.status === "done").length;
 
@@ -76,6 +77,11 @@ export function Greeting({ now }: { now: Date }) {
         >
           <span className="size-1 rounded-full bg-gold shadow-[0_0_8px_var(--gold)]" />
           {format(now, "EEEE")} <span className="text-ink-4">·</span> {format(now, "MMMM d, yyyy")}
+          {schoolDay && (
+            <>
+              <span className="text-ink-4">·</span> <span className="text-gold">{schoolDay}</span>
+            </>
+          )}
           <span className="text-ink-4">·</span> <span className="tabular">{format(now, "h:mm a")}</span>
         </motion.div>
         <motion.h1
@@ -87,7 +93,7 @@ export function Greeting({ now }: { now: Date }) {
           {greetingFor(now)}
           {name ? (
             <>
-              , <em className="bg-gradient-to-r from-[#f6e2b8] via-gold to-[#c9a2ff] bg-clip-text text-transparent">{name}</em>.
+              , <em className="bg-gradient-to-r from-[var(--accent-hi)] via-gold to-ice bg-clip-text text-transparent">{name}</em>.
             </>
           ) : (
             "."
@@ -113,7 +119,7 @@ export function Greeting({ now }: { now: Date }) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="What should I call you?"
-              className="w-56 rounded-xl border border-line bg-white/[0.025] px-3 py-1.5 text-sm text-ink outline-none placeholder:text-ink-4 focus:border-line-strong"
+              className="w-56 rounded-xl border border-line bg-ink/[0.025] px-3 py-1.5 text-sm text-ink outline-none placeholder:text-ink-4 focus:border-line-strong"
             />
             {draft.trim() && (
               <button className="rounded-xl border border-line-strong px-3 py-1.5 text-xs text-gold">Save</button>

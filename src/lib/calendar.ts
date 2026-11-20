@@ -2,7 +2,7 @@
 // detection, and side-by-side layout for overlapping events.
 
 import type { CalendarEvent, Task } from "./types";
-import { addDays, eventsOn, minutesBetween, occurrenceOn, parseDateKey, toDateKey } from "./dates";
+import { addDays, eventsOn, minutesBetween, occurrenceOn, parseDateKey, timedEventsOn, toDateKey } from "./dates";
 
 export interface Occurrence extends CalendarEvent {
   /** The base event id (same as id); occurrences of a series share it. */
@@ -38,6 +38,7 @@ export function findConflicts(
   events: CalendarEvent[],
   horizonDays = 28,
 ): Conflict[] {
+  if ((candidate as { allDay?: boolean }).allDay) return [];
   const others = events.filter((e) => e.id !== candidate.id);
   const first = candidate.start.slice(0, 10);
   const days = candidate.recurrence ? horizonDays : 1;
@@ -48,7 +49,7 @@ export function findConflicts(
     const day = toDateKey(addDays(parseDateKey(first), i));
     const occ = occurrenceOn(probe, day);
     if (!occ) continue;
-    for (const e of eventsOn(others, day)) {
+    for (const e of timedEventsOn(others, day)) {
       if (seen.has(e.id)) continue;
       if (overlaps(occ.start, occ.end, e.start, e.end)) {
         seen.add(e.id);
@@ -61,7 +62,7 @@ export function findConflicts(
 
 /** Pairs of overlapping events on a day — used to badge clashes in the calendar. */
 export function conflictIdsOn(events: CalendarEvent[], day: string): Set<string> {
-  const list = eventsOn(events, day);
+  const list = timedEventsOn(events, day);
   const ids = new Set<string>();
   for (let i = 0; i < list.length; i++)
     for (let j = i + 1; j < list.length; j++)
@@ -86,7 +87,7 @@ export interface Placed {
 export function layoutDay(events: CalendarEvent[], day: string, startHour: number, endHour: number): Placed[] {
   const viewStart = `${day}T${String(startHour).padStart(2, "0")}:00`;
   const viewEnd = `${day}T${String(endHour).padStart(2, "0")}:00`;
-  const list = eventsOn(events, day).filter((e) => e.end > viewStart && e.start < viewEnd);
+  const list = timedEventsOn(events, day).filter((e) => e.end > viewStart && e.start < viewEnd);
   const placed: Placed[] = [];
   let cluster: Placed[] = [];
   let clusterEnd = "";

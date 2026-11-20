@@ -5,6 +5,7 @@ import { useStore } from "@/lib/store";
 import { toDateKey } from "@/lib/dates";
 import { useUI } from "@/components/ui/ui-store";
 import type { SchoolSyncResponse } from "./types";
+import { autoSyncCalendars } from "@/lib/calendar-sync";
 
 export interface SyncOutcome {
   ok: boolean;
@@ -47,6 +48,7 @@ let triedThisSession = false;
 /** Sync quietly when devbot opens, if the last sync is older than 3 hours. */
 export function useSchoolAutoSync() {
   useEffect(() => {
+    autoSyncCalendars();
     if (triedThisSession) return;
     triedThisSession = true;
     const last = useStore.getState().school.lastSync;

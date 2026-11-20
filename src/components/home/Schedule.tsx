@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Plus, Repeat, X } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { addDays, eventsOn, formatTime, minutesBetween, timeOf, toDateKey, toDateTime } from "@/lib/dates";
+import { addDays, allDayOn, formatTime, minutesBetween, timeOf, timedEventsOn, toDateKey, toDateTime } from "@/lib/dates";
 import type { CalendarEvent, Task } from "@/lib/types";
 import { SectionHeader } from "@/components/ui/primitives";
 import { CATEGORY_META } from "@/components/ui/meta";
@@ -88,9 +88,9 @@ function EventRow({ ev, now, past }: { ev: CalendarEvent; now: Date; past: boole
           <div className="flex shrink-0 items-center gap-1">
             {live && <span className="rounded-full px-2 py-0.5 text-[10.5px]" style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}>Now</span>}
             {!live && !past && startsIn <= 90 && <span className="tabular text-[10.5px] text-ink-2">{until(startsIn)}</span>}
-            <button onClick={(e) => { e.stopPropagation(); remove(); }} aria-label={`Remove ${ev.title}`} className="grid size-6 place-items-center rounded-md text-ink-4 opacity-0 transition-opacity hover:text-coral group-hover:opacity-100">
+            {!ev.subscriptionId && <button onClick={(e) => { e.stopPropagation(); remove(); }} aria-label={`Remove ${ev.title}`} className="grid size-6 place-items-center rounded-md text-ink-4 opacity-0 transition-opacity hover:text-coral group-hover:opacity-100">
               <X size={12} />
-            </button>
+            </button>}
           </div>
         </div>
       </div>
@@ -117,14 +117,16 @@ export function Schedule({ now }: { now: Date }) {
   const openCommand = useUI((s) => s.openCommand);
   const today = toDateKey(now);
   const nowStr = toDateTime(now);
-  const todays = eventsOn(events, today);
+  const todays = timedEventsOn(events, today);
+  const allDay = allDayOn(events, today);
   const dues = tasks.filter((t) => t.status === "todo" && t.dueDate === today && t.dueTime);
   const items: Item[] = [
     ...todays.map((ev) => ({ kind: "event" as const, at: ev.start, ev })),
     ...dues.map((task) => ({ kind: "due" as const, at: `${today}T${task.dueTime}`, task })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   const nowIndex = items.findIndex((i) => (i.kind === "event" ? i.ev.end > nowStr : i.at > nowStr));
-  const tomorrow = eventsOn(events, toDateKey(addDays(now, 1)));
+  const tomorrowKey = toDateKey(addDays(now, 1));
+  const tomorrow = [...allDayOn(events, tomorrowKey), ...timedEventsOn(events, tomorrowKey)];
 
   return (
     <section className="panel flex flex-col p-5 sm:p-6">
@@ -133,12 +135,27 @@ export function Schedule({ now }: { now: Date }) {
         right={
           <button
             onClick={() => useUI.getState().editEvent({ id: "new" })}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:bg-white/[0.04] hover:text-ink"
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:bg-ink/[0.04] hover:text-ink"
           >
             <Plus size={13} /> Event
           </button>
         }
       />
+      {allDay.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {allDay.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => useUI.getState().editEvent({ id: e.id })}
+              className="flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] text-ink-2 transition-colors hover:text-ink"
+              style={{ borderColor: `color-mix(in srgb, ${CATEGORY_META[e.category].color} 35%, transparent)`, background: `color-mix(in srgb, ${CATEGORY_META[e.category].color} 8%, transparent)` }}
+            >
+              <span className="size-1.5 shrink-0 rounded-full" style={{ background: CATEGORY_META[e.category].color }} />
+              <span className="truncate">{e.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="py-6">
           <p className="text-sm text-ink-3">No events today.</p>
@@ -169,7 +186,7 @@ export function Schedule({ now }: { now: Date }) {
           <ul className="space-y-1.5">
             {tomorrow.slice(0, 4).map((e) => (
               <li key={e.id + e.start} className="flex items-center gap-3 text-[12.5px]">
-                <span className="tabular w-[52px] shrink-0 text-right font-mono text-[10.5px] text-ink-4">{formatTime(timeOf(e.start))}</span>
+                <span className="tabular w-[52px] shrink-0 text-right font-mono text-[10.5px] text-ink-4">{e.allDay ? "all day" : formatTime(timeOf(e.start))}</span>
                 <span className="size-1.5 shrink-0 rounded-full" style={{ background: CATEGORY_META[e.category].color }} />
                 <span className="truncate text-ink-2">{e.title}</span>
               </li>

@@ -6,7 +6,7 @@ import { PRIORITY_ORDER } from "./types";
 import {
   addDays,
   daysUntil,
-  eventsOn,
+  timedEventsOn,
   format,
   minutesBetween,
   parseDateKey,
@@ -85,7 +85,7 @@ export function freeGaps(events: CalendarEvent[], now: Date, dayEnd = "22:00"): 
   const end = `${today}T${dayEnd}`;
   let cursor = toDateTime(now);
   const gaps: Gap[] = [];
-  for (const e of eventsOn(events, today)) {
+  for (const e of timedEventsOn(events, today)) {
     if (e.end <= cursor) continue;
     if (e.start > cursor) {
       const m = minutesBetween(cursor, e.start < end ? e.start : end);
@@ -150,7 +150,7 @@ export function computeInsights(data: Snapshot, now: Date): Insight[] {
   }
 
   const tomorrow = toDateKey(addDays(now, 1));
-  const tmrEvents = eventsOn(data.events, tomorrow);
+  const tmrEvents = timedEventsOn(data.events, tomorrow);
   const tmrBusyMin = tmrEvents.reduce((m, e) => m + minutesBetween(e.start, e.end), 0);
   const tmrTasks = data.tasks.filter(
     (t) => t.status === "todo" && (t.dueDate === tomorrow || t.scheduledDate === tomorrow),
@@ -185,7 +185,7 @@ export function computeInsights(data: Snapshot, now: Date): Insight[] {
 export function daySummary(data: Snapshot, now: Date): string {
   const today = toDateKey(now);
   const open = todaysTasks(data.tasks, today).filter((t) => t.status === "todo");
-  const events = eventsOn(data.events, today).filter((e) => e.end > toDateTime(now));
+  const events = timedEventsOn(data.events, today).filter((e) => e.end > toDateTime(now));
   const next = upcomingDeadlines(data, now, 7).find((d) => d.days >= 0);
   const parts: string[] = [];
   if (open.length === 0 && events.length === 0) parts.push("Your day is clear");
