@@ -63,7 +63,7 @@ export function TaskRow({ task, now }: { task: Task; now: Date }) {
           {task.title}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <CategoryTag category={task.category} label={project?.name} />
+          <CategoryTag category={task.category} label={project?.name ?? task.context ?? undefined} />
           {task.dueDate && (
             <span className={`tabular text-[11.5px] ${overdue ? "text-coral" : "text-ink-3"}`}>
               {task.kind === "deadline" ? "Due " : ""}

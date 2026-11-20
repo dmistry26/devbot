@@ -90,6 +90,9 @@ export function SchoolSettings() {
               return (
                 <li key={c.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
                   <span className="min-w-0 truncate text-sm text-ink">{c.name}</span>
+                  {c.sampleDates.length < 2 ? (
+                    <span className="shrink-0 px-2.5 py-1 text-xs text-ink-4">One date per class</span>
+                  ) : (
                   <div className="flex shrink-0 rounded-lg bg-white/[0.03] p-0.5 text-xs">
                     {([0, 1] as const).map((d) => (
                       <button
@@ -101,6 +104,7 @@ export function SchoolSettings() {
                       </button>
                     ))}
                   </div>
+                  )}
                 </li>
               );
             })}

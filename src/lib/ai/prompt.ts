@@ -56,6 +56,8 @@ export function buildContext(data: Snapshot, nowLocal: string): string {
     if (t.scheduledDate) bits.push(`work-on ${t.scheduledDate}`);
     const p = proj(t.projectId);
     if (p) bits.push(`project: ${p}`);
+    if (t.context) bits.push(`class: ${t.context}`);
+    if (t.source === "school") bits.push("from school lesson plan");
     lines.push("- " + bits.join(" | "));
   }
   if (!open.length) lines.push("(none)");

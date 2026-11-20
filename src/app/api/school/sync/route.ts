@@ -3,7 +3,7 @@ import {
   extractHomework,
   htmlToText,
   parseDatePair,
-  resolveItem,
+  parseLine,
   schoolYearStartFrom,
   shortCourseName,
   splitItem,
@@ -68,11 +68,14 @@ export async function POST(req: Request) {
         courses.push(entry);
         const day: DayIndex = body.days?.[String(course.id)] === 1 ? 1 : 0;
 
+        const courseItems: (SchoolItem & { key: string })[] = [];
         for (const book of books) {
           const found = await readBook(book, course.id, name, day, today, windowStart, windowEnd);
-          items.push(...found.items);
-          if (found.sampleDates.length && !entry.sampleDates.length) entry.sampleDates = found.sampleDates;
+          courseItems.push(...found.items);
+          const recent = found.sampleDates;
+          if (recent.length && (!entry.sampleDates.length || recent[0] > entry.sampleDates[0])) entry.sampleDates = recent;
         }
+        items.push(...dedupe(courseItems));
       }),
     );
 
@@ -107,7 +110,7 @@ async function readBook(
     }))
     .filter((c) => c.dates.length > 0);
 
-  const items: SchoolItem[] = [];
+  const items: (SchoolItem & { key: string })[] = [];
   const meetingDate = (c: Chapter) => c.dates[day] ?? c.dates[0];
   const inWindow = chapters
     .map((c, i) => ({ c, i }))
@@ -115,36 +118,63 @@ async function readBook(
 
   // The most recent meeting at or before today, to show which date pair you're on.
   const recent = [...chapters].reverse().find((c) => c.dates[0] <= today);
+  const base = process.env.MOODLE_URL?.replace(/\/+$/, "");
 
   await Promise.all(
     inWindow.map(async ({ c, i }) => {
       const html = await fetchFile(c.fileurl);
-      const lines = extractHomework(htmlToText(html));
-      let n = 0;
-      for (const line of lines) {
+      for (const line of extractHomework(htmlToText(html))) {
         for (const part of splitItem(line)) {
-          const r = resolveItem(part, i, chapters, day, syStart);
-          const id = `vcs:${book.id}:${c.id}:${n++}`;
-          if (!r.title) continue;
-          // Skip work that was already due before today.
-          if (r.dueDate && r.dueDate < today) continue;
-          if (!r.dueDate && meetingDate(c) < addDays(today, -1)) continue;
-          items.push({
-            externalId: id,
-            courseId,
-            courseName,
-            title: r.title,
-            dueDate: r.dueDate,
-            assignedDate: meetingDate(c),
-            kind: r.kind,
-            priority: r.priority,
-            sourceUrl: `${process.env.MOODLE_URL?.replace(/\/+$/, "")}/mod/book/view.php?id=${book.id}&chapterid=${c.id}`,
-          });
+          for (const r of parseLine(part, { chapterIndex: i, chapters, day, schoolYearStart: syStart })) {
+            // Skip work that was already due before today, and undated items from old meetings.
+            if (r.dueDate && r.dueDate < today) continue;
+            if (!r.dueDate && meetingDate(c) < addDays(today, -1)) continue;
+            items.push({
+              key: r.key,
+              externalId: "",
+              courseId,
+              courseName,
+              title: r.title,
+              dueDate: r.dueDate,
+              dueTime: r.dueTime,
+              assignedDate: meetingDate(c),
+              kind: r.kind,
+              priority: r.priority,
+              sourceUrl: `${base}/mod/book/view.php?id=${book.id}&chapterid=${c.id}`,
+            });
+          }
         }
       }
     }),
   );
   return { items, sampleDates: recent?.dates ?? [] };
+}
+
+/** ISO-ish week key so a test next month doesn't collide with this month's. */
+function weekKey(date: string | null) {
+  if (!date) return "nodate";
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); // Monday of that week
+  return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Teachers often repeat the same homework on consecutive class days. Keep one
+ * item per course + title: the one from the most recent lesson plan.
+ */
+function dedupe(list: (SchoolItem & { key: string })[]): SchoolItem[] {
+  const best = new Map<string, SchoolItem & { key: string }>();
+  for (const it of list) {
+    const k = it.kind === "deadline" ? `${it.key}:${weekKey(it.dueDate)}` : it.key;
+    const prev = best.get(k);
+    if (!prev || (it.assignedDate ?? "") > (prev.assignedDate ?? "")) best.set(k, it);
+  }
+  return [...best.entries()].map(([k, it]) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { key, ...rest } = it;
+    return { ...rest, externalId: `vcs:${it.courseId}:${k}` };
+  });
 }
 
 function errorResponse(e: unknown) {

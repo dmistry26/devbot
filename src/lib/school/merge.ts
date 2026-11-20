@@ -8,11 +8,11 @@ export interface MergeResult {
   updated: number;
 }
 
-/** "Test" → "AP Calculus BC test"; "WebAssign HW 4.5" → "AP Calculus BC: WebAssign HW 4.5" */
+/** Bare test names get the class added ("Test" → "AP US History test"); the class shows as a label otherwise. */
 export function schoolTitle(item: SchoolItem) {
   const t = item.title.trim();
-  if (/^(test|quiz|exam|midterm|final|group quiz|unit test)$/i.test(t)) return `${item.courseName} ${t.toLowerCase()}`;
-  return `${item.courseName}: ${t}`;
+  if (/^((unit|chapter|module)\s*\d+\s+)?(test|quiz|exam|midterm|final|group quiz|unit test)$/i.test(t)) return `${item.courseName} ${t.toLowerCase()}`;
+  return t;
 }
 
 /** Homework goes on your list the day before it's due (or today, if that's later). Tests stay on the horizon. */
@@ -44,11 +44,13 @@ export function mergeSchoolItems(
     if (existing) {
       // Don't touch finished work or anything you've edited by hand since import.
       if (existing.status === "done" || existing.updatedAt > existing.createdAt) continue;
-      if (existing.title !== title || existing.dueDate !== item.dueDate) {
+      if (existing.title !== title || existing.context !== item.courseName || existing.dueDate !== item.dueDate || (existing.dueTime ?? null) !== (item.dueTime ?? null)) {
         changes.set(existing.id, {
           ...existing,
           title,
           dueDate: item.dueDate,
+          dueTime: item.dueTime ?? null,
+          context: item.courseName,
           kind: item.kind,
           scheduledDate: planDay(item, today),
           updatedAt: existing.createdAt,
@@ -66,11 +68,12 @@ export function mergeSchoolItems(
       kind: item.kind,
       category: "academic",
       dueDate: item.dueDate,
-      dueTime: null,
+      dueTime: item.dueTime ?? null,
       scheduledDate: planDay(item, today),
       projectId: null,
       source: "school",
       externalId: item.externalId,
+      context: item.courseName,
       sourceUrl: item.sourceUrl,
       createdAt: nowIso,
       updatedAt: nowIso,

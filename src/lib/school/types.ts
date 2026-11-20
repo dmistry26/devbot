@@ -8,11 +8,12 @@ export interface SchoolCourse {
 }
 
 export interface SchoolItem {
-  externalId: string; // stable: vcs:<cmid>:<chapterid>:<n>
+  externalId: string; // stable: vcs:<courseId>:<task|deadline>:<slug>[:<week>]
   courseId: number;
   courseName: string;
   title: string;
   dueDate: string | null;
+  dueTime: string | null;
   assignedDate: string | null;
   kind: "task" | "deadline";
   priority: "high" | "normal";

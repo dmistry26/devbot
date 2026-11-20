@@ -33,6 +33,8 @@ export interface Task {
   source: Source;
   /** Stable id from an import source (e.g. "vcs:<cmid>:<chapter>:<n>"), used to dedupe re-syncs. */
   externalId?: string | null;
+  /** Short label shown under the title, e.g. the class name for school homework. */
+  context?: string | null;
   /** Link back to where the task came from, e.g. the Moodle book chapter. */
   sourceUrl?: string | null;
   createdAt: string;
