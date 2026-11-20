@@ -33,7 +33,9 @@ export function SchoolSettings() {
   };
 
   const setDay = (courseId: number, day: 0 | 1) => {
-    setSchool({ days: { ...school.days, [String(courseId)]: day } });
+    // Read fresh state so quick successive picks don't overwrite each other.
+    const days = useStore.getState().school.days;
+    setSchool({ days: { ...days, [String(courseId)]: day } });
   };
 
   const notConfigured = result?.error === "not_configured" || (!school.lastSync && !result);
