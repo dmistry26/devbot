@@ -2,12 +2,13 @@ import { requireAuth } from "@/lib/auth";
 import { TOOLS } from "@/lib/ai/tools";
 import { SYSTEM, buildContext, type AgentId } from "@/lib/ai/prompt";
 import { ProviderError, getProvider, normalizeInput } from "@/lib/ai/provider";
-import type { Snapshot } from "@/lib/types";
+import type { GradesSnapshot, Snapshot } from "@/lib/types";
 import type { Action } from "@/lib/actions";
 
 interface Body {
   messages: { role: "user" | "assistant"; content: string }[];
   snapshot: Snapshot;
+  grades?: GradesSnapshot | null;
   now: string; // local YYYY-MM-DDTHH:mm from the browser
   agent: AgentId;
 }
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
   }
 
   // Volatile context goes in the last user turn so the system prompt + tools stay cacheable.
-  const context = buildContext(body.snapshot, body.now);
+  const context = buildContext(body.snapshot, body.now, body.grades);
   const messages = history.map((m, i) =>
     i === history.length - 1 ? { role: m.role, content: `<context>\n${context}\n</context>\n\n${m.content}` } : m,
   );
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       .filter((c) => TOOL_NAMES.has(c.name))
       .map((c) => ({ type: c.name, ...normalizeInput(TOOLS.find((t) => t.name === c.name), c.input) }) as Action);
     return json({
-      reply: res.text || (actions.length ? "Here's what I'd change:" : "Done."),
+      reply: res.text || (actions.length ? "Here's what I'd add. Look it over and untick anything you don't want:" : "Done."),
       actions,
       agent,
     });

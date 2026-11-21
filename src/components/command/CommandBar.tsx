@@ -10,6 +10,7 @@ import { Kbd } from "@/components/ui/primitives";
 import { useUI } from "@/components/ui/ui-store";
 import { useChat, type ChatMessage, type ProposalState } from "./chat-store";
 import { ProposalCard } from "./ProposalCard";
+import { Markdown } from "./Markdown";
 import type { CommandResponse } from "@/app/api/command/route";
 
 const AGENTS: Record<AgentId, { name: string; short: string; Icon: typeof Sparkles; color: string }> = {
@@ -117,6 +118,7 @@ export function CommandBar() {
           body: JSON.stringify({
             messages: history,
             snapshot: snapshotOf(useStore.getState()),
+            grades: useStore.getState().grades,
             now: toDateTime(new Date()),
             agent: agentNow,
           }),
@@ -240,7 +242,7 @@ export function CommandBar() {
                 </div>
               </div>
 
-              <div ref={scrollRef} className="scroll-thin max-h-[min(58vh,560px)] overflow-y-auto px-4 py-4">
+              <div ref={scrollRef} className="scroll-thin max-h-[min(66vh,640px)] overflow-y-auto px-4 py-4">
                 {hydrated && messages.length === 0 && !busy ? (
                   <div className="py-4">
                     <p className="font-display text-[24px] leading-tight text-ink">
@@ -381,7 +383,9 @@ function Message({ m, onResolve }: { m: ChatMessage; onResolve: (p: ProposalStat
       <div className="mb-1 flex items-center gap-1.5 text-[11px]" style={{ color: a.color }}>
         <a.Icon size={11} /> {a.name}
       </div>
-      <div className={`whitespace-pre-wrap text-[14px] leading-relaxed ${m.error ? "text-coral" : "text-ink-2"}`}>{m.content}</div>
+      <div className={`text-[14px] leading-relaxed ${m.error ? "text-coral" : "text-ink-2"}`}>
+        {m.error ? m.content : <Markdown text={m.content} />}
+      </div>
       {m.actions && m.proposal && <ProposalCard actions={m.actions} state={m.proposal} onResolve={onResolve} />}
     </div>
   );
