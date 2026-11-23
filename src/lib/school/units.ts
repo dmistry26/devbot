@@ -120,3 +120,51 @@ export function unitChapterItems(chapters: UnitChapter[], index: number, day: Da
 export function unitChapterLines(c: UnitChapter): string[] {
   return [...c.lines, ...c.modules.map((m) => htmlToText(m.name))];
 }
+
+const POSTING = /\b(opens|opened|posted|available|released|assigned|starts|begins)\b(?:\s+(?:by|on|in))?\s+(?:[A-Za-z]+\.?\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}\/\d{1,2})/gi;
+
+/**
+ * Dated items from a tab's intro text (Moodle "section summary"). Teachers
+ * keep exam schedules there:
+ *   "Dec. 2: Ch. 6 Test"
+ *   "Unit 3 Part 1 Exam Dec 7 - Study Guide posted by Nov 30, Practice Test in
+ *    Achieve opens Nov 20 due Dec 7 at 8am. Turn in classwork binders Dec 3."
+ * Only clauses with an explicit date count; "posted"/"opens" dates are ignored.
+ */
+export function summaryItems(summaryHtml: string, schoolYearStart: number, day: DayIndex): ParsedLine[] {
+  const text = htmlToText(summaryHtml || "");
+  const out: ParsedLine[] = [];
+  const ctx = { chapterIndex: 0, chapters: [] as Chapter[], day, schoolYearStart };
+  for (const line of text.split("\n").map((l) => l.trim()).filter(Boolean)) {
+    if (line.length > 600) continue;
+    const clauses = line
+      .split(/\s+[-–—]\s+|(?<=[.!?])\s+(?=[A-Z])/)
+      .flatMap((c) => c.split(/,\s+(?=[A-Z])/))
+      .map((c) => c.trim())
+      .filter(Boolean);
+    for (const raw of clauses) {
+      const clause = raw.replace(POSTING, "").replace(/\s{2,}/g, " ").trim();
+      // Date: the one after "due" if there is one, else the first date in the clause.
+      const dueAt = clause.search(/\bdue\b/i);
+      const scope = dueAt >= 0 ? clause.slice(dueAt) : clause;
+      const date =
+        parseNumericDue(scope, schoolYearStart) ??
+        parseDatePair(scope, schoolYearStart)[day] ??
+        parseDatePair(scope, schoolYearStart)[0] ??
+        null;
+      if (!date) continue;
+      const type = assessmentType(clause);
+      if (type) {
+        out.push({ title: assessmentTitle(clause.replace(/^[^:]{0,20}:\s*/, ""), type), dueDate: date, dueTime: null, kind: "deadline", priority: "high", key: `deadline:${type}`, rank: 2 });
+        continue;
+      }
+      const parsed = parseLine(clause, ctx)[0];
+      if (!parsed) continue;
+      // "…Category at" (from "due Dec 7 at 8am"); a bare year like "2026" isn't an assignment.
+      const title = parsed.title.replace(/\s+(?:at|by|on|in)$/i, "").trim();
+      if (!/[a-z]{3}/i.test(title)) continue;
+      out.push({ ...parsed, title, dueDate: date, rank: 2 });
+    }
+  }
+  return out;
+}

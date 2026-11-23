@@ -34,6 +34,7 @@ export interface MoodleSection {
   id: number;
   name: string;
   section: number;
+  summary?: string; // the tab's intro text (HTML)
   modules: MoodleModule[];
 }
 

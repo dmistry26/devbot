@@ -13,7 +13,7 @@ import {
   type DayIndex,
 } from "./parse";
 import { matchCourse } from "@/lib/grades/import";
-import { unitChapterItems, unitChapterLines, unitChapters, type UnitSection } from "./units";
+import { summaryItems, unitChapterItems, unitChapterLines, unitChapters, type UnitSection } from "./units";
 
 export interface SearchHit {
   className: string;
@@ -91,6 +91,15 @@ export async function searchLessonPlans(opts: {
       if (!books.length && !units.length) return;
       searched.push(course.name);
       const day: DayIndex = opts.days[String(course.id)] === 1 ? 1 : 0;
+      // Tab intro text: exam schedules ("Dec. 2: Ch. 6 Test", "Unit 3 Part 1 Exam Dec 7 - …").
+      for (const sec of sections) {
+        if (!sec.summary) continue;
+        for (const it of summaryItems(sec.summary, schoolYearStartFrom(books[0]?.name ?? "", opts.today), day)) {
+          if (!it.dueDate || it.dueDate < opts.today || it.dueDate > to) continue;
+          if (it.kind === "deadline") tests.push({ className: course.name, title: it.title, date: it.dueDate });
+          else matches.push({ className: course.name, classDay: it.dueDate, chapter: `${htmlToText(sec.name)} (intro)`, line: `${it.title} (due ${it.dueDate}${it.dueTime ? " " + it.dueTime : ""})` });
+        }
+      }
       // Unit tabs ("Ch. 6"): no downloads needed, the notes and assignment names are in the course listing.
       const usy = schoolYearStartFrom(books[0]?.name ?? "", opts.today);
       units.forEach((c, i) => {

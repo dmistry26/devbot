@@ -154,7 +154,11 @@ export interface ParsedLine extends ParsedItem {
 
 export type AssessmentType = "quiz" | "test" | "exam";
 
+/** "Practice Test in Achieve", "mock exam", "sample quiz" are homework, not the real thing. */
+export const PRACTICE = /\b(practice|mock|sample|review)\s+(tests?|quiz(?:zes)?|exams?)\b/i;
+
 export function assessmentType(s: string): AssessmentType | null {
+  if (PRACTICE.test(s) && !/\b(unit|chapter|ch\.?)\s*\d+\s+(part\s*\d+\s+)?(test|quiz|exam)\b/i.test(s)) return null;
   if (/\b(midterms?|final exams?|exams?|finals)\b/i.test(s)) return "exam";
   if (/\bquiz(?:zes)?\b/i.test(s)) return "quiz";
   if (/\btests?\b/i.test(s)) return "test";
@@ -252,7 +256,7 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
 
   const meeting = (c: Chapter | undefined) => (c ? (c.dates[day] ?? c.dates[0] ?? null) : null);
   const assigned = meeting(chapters[chapterIndex]);
-  const noun = text.match(NOUN);
+  const noun = assessmentType(text) ? text.match(NOUN) : null; // practice tests are homework
   const announcement = text.length > 140 || /^(reminder|note|fyi|because|remember|just a reminder)\b/i.test(text);
 
   // Find the due date. In long announcements the test date is usually the last date mentioned.

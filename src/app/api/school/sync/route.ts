@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { MoodleError, fetchFile, getActionEvents, getContents, getCourses, getSiteInfo, moodleConfig, type MoodleActionEvent, type MoodleModule } from "@/lib/school/moodle";
-import { unitChapterItems, unitChapters, type UnitSection } from "@/lib/school/units";
+import { summaryItems, unitChapterItems, unitChapters, type UnitSection } from "@/lib/school/units";
 import {
   extractHomework,
   htmlToText,
@@ -114,6 +114,19 @@ export async function POST(req: Request) {
             if (it) courseItems.push(it);
           }
         });
+
+        // Tab intro text: exam schedules like "Dec. 2: Ch. 6 Test" or "Unit 3 Part 1 Exam Dec 7 - …".
+        if (entry.hasHomework) {
+          const schedEnd = addDays(today, 60);
+          for (const sec of sections) {
+            if (!sec.summary) continue;
+            for (const r of summaryItems(sec.summary, sy, day)) {
+              if (!r.dueDate || r.dueDate > schedEnd) continue;
+              const it = toRanked(r, today, course.id, name, `${base}/course/view.php?id=${course.id}&section=${sec.section}`, today);
+              if (it) courseItems.push(it);
+            }
+          }
+        }
 
         // Moodle assignment deadlines for this class, unless the lesson plans already have them.
         if (entry.hasHomework) {
