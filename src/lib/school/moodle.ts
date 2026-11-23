@@ -104,3 +104,22 @@ export async function fetchFile(fileurl: string): Promise<string> {
     throw new MoodleError("Couldn't reach learn.vcs.net.", "unreachable");
   }
 }
+
+export interface MoodleActionEvent {
+  id: number;
+  name: string;
+  timesort: number; // unix seconds
+  modulename?: string;
+  url?: string;
+  course?: { id: number; fullname?: string };
+}
+
+/** Upcoming assignment/quiz deadlines Moodle tracks (the "Timeline" block). */
+export async function getActionEvents(fromUnix: number, toUnix: number): Promise<MoodleActionEvent[]> {
+  const res = await call<{ events?: MoodleActionEvent[] }>("core_calendar_get_action_events_by_timesort", {
+    timesortfrom: fromUnix,
+    timesortto: toUnix,
+    limitnum: 50,
+  });
+  return res.events ?? [];
+}

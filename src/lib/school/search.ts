@@ -13,6 +13,7 @@ import {
   type DayIndex,
 } from "./parse";
 import { matchCourse } from "@/lib/grades/import";
+import { unitChapterItems, unitChapterLines, unitChapters, type UnitSection } from "./units";
 
 export interface SearchHit {
   className: string;
@@ -86,9 +87,23 @@ export async function searchLessonPlans(opts: {
       const sections = await getContents(course.id);
       const section = sections.find((s) => /lesson\s*plans?|homework/i.test(s.name));
       const books = (section?.modules ?? []).filter((m) => m.modname === "book" && m.visible !== 0 && m.uservisible !== false);
-      if (!books.length) return;
+      const units = unitChapters(sections as unknown as UnitSection[], schoolYearStartFrom(books[0]?.name ?? "", opts.today));
+      if (!books.length && !units.length) return;
       searched.push(course.name);
       const day: DayIndex = opts.days[String(course.id)] === 1 ? 1 : 0;
+      // Unit tabs ("Ch. 6"): no downloads needed, the notes and assignment names are in the course listing.
+      const usy = schoolYearStartFrom(books[0]?.name ?? "", opts.today);
+      units.forEach((c, i) => {
+        const meeting = c.dates[day] ?? c.dates[0];
+        if (meeting < from || meeting > to) return;
+        for (const it of unitChapterItems(units, i, day, usy)) {
+          if (it.kind === "deadline" && it.dueDate && it.dueDate >= opts.today) tests.push({ className: course.name, title: it.title, date: it.dueDate });
+          else if (it.dueDate && it.dueDate >= opts.today) matches.push({ className: course.name, classDay: meeting, chapter: `${c.sectionName}: ${c.title}`, line: `${it.title} (due ${it.dueDate})` });
+        }
+        for (const line of unitChapterLines(c)) {
+          if (lineRe.test(line)) matches.push({ className: course.name, classDay: meeting, chapter: `${c.sectionName}: ${c.title}`, line });
+        }
+      });
       for (const book of books) {
         const sy = schoolYearStartFrom(book.name, opts.today);
         const files = (book.contents ?? []).filter((f) => f.type === "file" && f.filename === "index.html" && f.fileurl);

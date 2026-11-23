@@ -6,6 +6,7 @@ assert.deepEqual(parseDatePair("**October 23/26**", Y), ["2026-10-23","2026-10-2
 assert.deepEqual(parseDatePair("Oct 30/Nov 2", Y), ["2026-10-30","2026-11-02"]);
 assert.deepEqual(parseDatePair("January 29/2", Y), ["2027-01-29","2027-02-02"]);
 assert.deepEqual(parseDatePair("Sept 3", Y), ["2026-09-03"]);
+assert.deepEqual(parseDatePair("Dec 2(A)/3(B)", Y), ["2026-12-02", "2026-12-03"]);
 assert.equal(schoolYearStartFrom("Quarter 2 (2026-27) Book", "2026-11-19"), 2026);
 assert.equal(shortCourseName("AP Calculus BC - Mr. Nie"), "AP Calculus BC");
 assert.equal(shortCourseName("AP US History - Dr. Olson"), "AP US History");
@@ -51,6 +52,9 @@ assert.deepEqual(one("Complete assignments from this unit and review for the tes
 // real Stats line: time + date
 r = one("Complete Achieve homework 3C due 9:15am Nov 24.");
 assert.deepEqual(r, [{ title: "Complete Achieve homework 3C", dueDate: "2026-11-24", dueTime: "09:15", kind: "task", priority: "normal" }]);
+// A/B markers in dates
+r = one("Upcoming: Writer's notebooks will be collected Dec 2(A)/3(B)", 0, 0);
+assert.equal(r[0].title, "Upcoming: Writer's notebooks will be collected"); assert.equal(r[0].dueDate, "2026-12-02");
 // noise
 assert.deepEqual(one("Population parameter defined"), []);
 assert.deepEqual(one("Conclusion in Context"), []);

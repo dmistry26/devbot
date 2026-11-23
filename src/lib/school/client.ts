@@ -27,7 +27,7 @@ export function syncSchool(): Promise<SyncOutcome> {
       const res = await fetch("/api/school/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ today: toDateKey(new Date()), days: school.days }),
+        body: JSON.stringify({ today: toDateKey(new Date()), days: school.days, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       const data = (await res.json()) as SchoolSyncResponse;
       if (!data.ok) return { ok: false, error: data.error, message: data.message, added: 0, updated: 0 };

@@ -1,10 +1,12 @@
 import { requireAuth } from "@/lib/auth";
-import { MoodleError, fetchFile, getContents, getCourses, getSiteInfo, moodleConfig, type MoodleModule } from "@/lib/school/moodle";
+import { MoodleError, fetchFile, getActionEvents, getContents, getCourses, getSiteInfo, moodleConfig, type MoodleActionEvent, type MoodleModule } from "@/lib/school/moodle";
+import { unitChapterItems, unitChapters, type UnitSection } from "@/lib/school/units";
 import {
   extractHomework,
   htmlToText,
   parseDatePair,
   parseLine,
+  assessmentType,
   extractAssessments,
   type ParsedLine,
   schoolYearStartFrom,
@@ -39,6 +41,7 @@ export async function GET(req: Request) {
 
 interface Body {
   today: string; // the browser's local date
+  tz?: string; // the browser's timezone, for assignment due times
   days?: Record<string, DayIndex>; // per course: which date of the A/B pair is your class
 }
 
@@ -60,6 +63,22 @@ export async function POST(req: Request) {
   try {
     const info = await getSiteInfo();
     const enrolled = (await getCourses(info.userid)).filter((c) => c.visible !== 0);
+    let tz = "America/Los_Angeles";
+    try {
+      if (body.tz) tz = new Intl.DateTimeFormat("en-US", { timeZone: body.tz }).resolvedOptions().timeZone;
+    } catch {}
+    // Assignment deadlines Moodle tracks (best effort: some schools hide this).
+    const eventsByCourse = new Map<number, MoodleActionEvent[]>();
+    try {
+      const [y, mo, d] = today.split("-").map(Number);
+      const from = Math.floor(Date.UTC(y, mo - 1, d) / 1000) - 86400;
+      for (const e of await getActionEvents(from, from + 86400 * 62)) {
+        if (!e.course?.id) continue;
+        eventsByCourse.set(e.course.id, [...(eventsByCourse.get(e.course.id) ?? []), e]);
+      }
+    } catch (e) {
+      console.warn("Moodle action events unavailable", e instanceof Error ? e.message : e);
+    }
     const courses: SchoolCourse[] = [];
     const items: SchoolItem[] = [];
 
@@ -71,7 +90,8 @@ export async function POST(req: Request) {
           (m) => m.modname === "book" && m.visible !== 0 && m.uservisible !== false,
         );
         const name = shortCourseName(course.fullname);
-        const entry: SchoolCourse = { id: course.id, name, fullname: htmlToText(course.fullname), hasHomework: books.length > 0, sampleDates: [] };
+        const units = unitChapters(sections as unknown as UnitSection[], schoolYearStartFrom(books[0]?.name ?? "", today));
+        const entry: SchoolCourse = { id: course.id, name, fullname: htmlToText(course.fullname), hasHomework: books.length > 0 || units.length > 0, sampleDates: [] };
         courses.push(entry);
         const day: DayIndex = body.days?.[String(course.id)] === 1 ? 1 : 0;
 
@@ -81,6 +101,26 @@ export async function POST(req: Request) {
           courseItems.push(...found.items);
           const recent = found.sampleDates;
           if (recent.length && (!entry.sampleDates.length || recent[0] > entry.sampleDates[0])) entry.sampleDates = recent;
+        }
+
+        // Unit tabs ("Ch. 6"): date headings, homework notes, assignments with due dates.
+        const base = process.env.MOODLE_URL?.replace(/\/+$/, "");
+        const sy = schoolYearStartFrom(books[0]?.name ?? "", today);
+        units.forEach((c, i) => {
+          const meeting = c.dates[day] ?? c.dates[0];
+          if (meeting < windowStart || meeting > windowEnd) return;
+          for (const r of unitChapterItems(units, i, day, sy)) {
+            const it = toRanked(r, meeting, course.id, name, `${base}/course/view.php?id=${course.id}&section=${c.sectionNumber}`, today);
+            if (it) courseItems.push(it);
+          }
+        });
+
+        // Moodle assignment deadlines for this class, unless the lesson plans already have them.
+        if (entry.hasHomework) {
+          for (const e of eventsByCourse.get(course.id) ?? []) {
+            const it = eventItem(e, course.id, name, tz, today);
+            if (it && !courseItems.some((x) => similarTitle(x.title, it.title) && near(x.dueDate, it.dueDate))) courseItems.push(it);
+          }
         }
         items.push(...dedupe(courseItems));
       }),
@@ -158,6 +198,75 @@ async function readBook(
   );
   return { items, sampleDates: recent?.dates ?? [] };
 }
+
+/** Shared filter + shape for one parsed item. */
+function toRanked(r: ParsedLine, meeting: string, courseId: number, courseName: string, sourceUrl: string, today: string): Ranked | null {
+  if (r.dueDate && r.dueDate < today) return null;
+  if (!r.dueDate && meeting < addDays(today, -1)) return null;
+  if (r.kind === "deadline" && !r.dueDate) return null;
+  return {
+    key: r.key,
+    rank: r.rank ?? 1,
+    externalId: "",
+    courseId,
+    courseName,
+    title: r.title,
+    dueDate: r.dueDate,
+    dueTime: r.dueTime,
+    assignedDate: meeting,
+    kind: r.kind,
+    priority: r.priority,
+    sourceUrl,
+  };
+}
+
+/** A Moodle "X is due" deadline → item, with the due date/time in the student's timezone. */
+function eventItem(e: MoodleActionEvent, courseId: number, courseName: string, tz: string, today: string): Ranked | null {
+  const raw = htmlToText(e.name).replace(/\s+is due$/i, "").trim();
+  if (!raw) return null;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date(e.timesort * 1000))
+      .map((p) => [p.type, p.value]),
+  );
+  const dueDate = `${parts.year}-${parts.month}-${parts.day}`;
+  if (dueDate < today) return null;
+  const time = `${parts.hour}:${parts.minute}`;
+  // Tidy the name ("… - Due Nov. 19 & 20" etc.) with the homework parser, keep Moodle's exact date.
+  const parsed = parseLine(raw, { chapterIndex: 0, chapters: [], day: 0, schoolYearStart: schoolYearStartFrom("", today) })[0];
+  const title = (parsed?.title || raw).replace(/\s*[-–]\s*$/, "").slice(0, 140);
+  const type = assessmentType(raw);
+  return {
+    key: `${type ? "deadline:" + type : "task:" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}`,
+    rank: 2,
+    externalId: "",
+    courseId,
+    courseName,
+    title,
+    dueDate,
+    dueTime: time === "00:00" ? null : time,
+    assignedDate: null,
+    kind: type ? "deadline" : "task",
+    priority: type ? "high" : "normal",
+    sourceUrl: e.url ?? "",
+  };
+}
+
+const words = (s: string) => new Set(s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 2));
+function similarTitle(a: string, b: string) {
+  const A = words(a);
+  const B = words(b);
+  if (!A.size || !B.size) return false;
+  let inter = 0;
+  for (const w of A) if (B.has(w)) inter++;
+  return inter / Math.min(A.size, B.size) >= 0.6;
+}
+const near = (a: string | null, b: string | null) => {
+  if (!a || !b) return false;
+  const [y1, m1, d1] = a.split("-").map(Number);
+  const [y2, m2, d2] = b.split("-").map(Number);
+  return Math.abs(Date.UTC(y1, m1 - 1, d1) - Date.UTC(y2, m2 - 1, d2)) <= 3 * 86_400_000;
+};
 
 /** ISO-ish week key so a test next month doesn't collide with this month's. */
 function weekKey(date: string | null) {

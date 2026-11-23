@@ -29,9 +29,10 @@ const MONTHS: Record<string, number> = {
 };
 const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?";
 
-const ORD = "(?:st|nd|rd|th)?";
+// Ordinal suffix, plus an optional A/B-day marker: "Dec 2(A)/3(B)".
+const ORD = "(?:st|nd|rd|th)?(?:\\s*\\([AB]\\))?";
 // month day[ord] [/ [month] day[ord]]  — captures: 1 month, 2 day, 3 month2?, 4 day2?
-const DATE_SRC = `${MONTH_RE}\\s+(\\d{1,2})${ORD}(?:\\s*[/&-]\\s*(?:${MONTH_RE}\\s+)?(\\d{1,2})${ORD})?\\b`;
+const DATE_SRC = `${MONTH_RE}\\s+(\\d{1,2})${ORD}(?:\\s*[/&-]\\s*(?:${MONTH_RE}\\s+)?(\\d{1,2})${ORD})?(?!\\w)`;
 const monthNum = (s: string) => MONTHS[s.toLowerCase().slice(0, 3)];
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -57,6 +58,20 @@ function isValidDate(y: number, m: number, d: number) {
  * Parse "November 19/20", "Oct 30/Nov 2", "**October 23/26**", "Dec 1".
  * Returns 1–2 dates. Handles a pair that crosses a month boundary.
  */
+/**
+ * Numeric due dates in names like "[due 12/2]" or "(due 12/14 by email)".
+ * Only when the word "due"/"by" is right before it, so fractions and scores aren't misread.
+ */
+export function parseNumericDue(text: string, schoolYearStart: number): string | null {
+  const m = text.match(/\b(?:due|by)\s*(?:on\s*)?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/i);
+  if (!m) return null;
+  const mo = Number(m[1]);
+  const d = Number(m[2]);
+  if (mo < 1 || mo > 12) return null;
+  const y = m[3] ? (m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])) : yearFor(mo, schoolYearStart);
+  return isValidDate(y, mo, d) ? `${y}-${pad(mo)}-${pad(d)}` : null;
+}
+
 export function parseDatePair(text: string, schoolYearStart: number): string[] {
   const clean = text.replace(/[*_]/g, " ");
   const re = new RegExp(DATE_SRC, "i");
@@ -202,6 +217,8 @@ function cap(s: string) {
 function cleanTitle(raw: string): string {
   let t = raw
     .replace(/\(should not[^)]*\)/gi, "")
+    .replace(/\s*[\[(][^\])]*\bdue\b[^\])]*[\])]/gi, "") // "[due 12/2]", "(50pts, due 12/14 by email)"
+    .replace(/\s*\bdue\s*\d{1,2}\/\d{1,2}\b/gi, "")
     .replace(new RegExp(`[,;(]?\\s*(?:(?:due|by|on|is|which is)\\s+)*(?:(?:sun|mon|tues?|wed(?:nes)?|thu(?:rs)?|fri|sat(?:ur)?)(?:day)?,?\\s+)?${DATE_SRC}\\)?`, "gi"), "")
     .replace(/\s*\b(?:due\s*)?(?:on|by|in class on)?\s*(?:this\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, "")
     .replace(TIME_RE, "")
@@ -247,6 +264,10 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
     const after = noun ? text.slice((noun.index ?? 0) + noun[0].length) : text;
     explicit = parseDatePair(after, schoolYearStart);
     if (!explicit.length) explicit = parseDatePair(text, schoolYearStart);
+    if (!explicit.length) {
+      const numeric = parseNumericDue(text, schoolYearStart);
+      if (numeric) explicit = [numeric];
+    }
   }
   let dueDate: string | null = null;
   let stated = true; // false when we only assumed "due next class"
@@ -287,7 +308,7 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
   if (!title) return [];
   // Short phrases without an action verb are usually notes ("Assumptions & Conditions").
   const words = title.split(/\s+/).length;
-  if (!noun && words <= 6 && !ACTION.test(title) && !/\d/.test(title) && !/\b(hw|homework|assignment|worksheet|project|essay|reading|webassign|zybooks|achieve)\b/i.test(title)) {
+  if (!noun && words <= 6 && !ACTION.test(title) && !/\d/.test(title) && !/\b(hw|homework|assignment|worksheet|project|essay|reading|webassign|zybooks|achieve|notebooks?|journal|collected|due|submit|turn in|bring|print)\b/i.test(title)) {
     return [];
   }
 
@@ -355,7 +376,8 @@ export function extractAssessments(text: string, ctx: LineContext): ParsedLine[]
     if (!type || NOT_AN_ASSESSMENT.test(line)) continue;
     let date: string | null = null;
     let rank = 1;
-    const explicit = parseDatePair(line, schoolYearStart);
+    const numericDue = parseNumericDue(line, schoolYearStart);
+    const explicit = numericDue ? [numericDue] : parseDatePair(line, schoolYearStart);
     if (explicit.length) {
       date = explicit[day] ?? explicit[0];
       rank = 2;
