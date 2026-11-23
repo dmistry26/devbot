@@ -80,6 +80,17 @@ export function CommandBar() {
   const pendingSend = useUI((s) => s.pendingSend);
   const setInput = useUI((s) => s.setDraft);
   const busy = useChat((s) => s.busy);
+  const [waited, setWaited] = useState(0);
+  // Count seconds while waiting, so long answers (searching learn.vcs.net) say what's going on.
+  useEffect(() => {
+    if (!busy) return;
+    const started = Date.now();
+    const id = setInterval(() => setWaited(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => {
+      clearInterval(id);
+      setWaited(0);
+    };
+  }, [busy]);
   const setBusy = useChat((s) => s.setBusy);
   const hydrated = useHydrated();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -119,6 +130,7 @@ export function CommandBar() {
             messages: history,
             snapshot: snapshotOf(useStore.getState()),
             grades: useStore.getState().grades,
+            days: useStore.getState().school.days,
             now: toDateTime(new Date()),
             agent: agentNow,
           }),
@@ -270,7 +282,7 @@ export function CommandBar() {
                             />
                           ))}
                         </span>
-                        {A.name} is thinking…
+                        {waited < 5 ? `${A.name} is thinking…` : waited < 30 ? "Checking your lesson plans and schedule…" : "Still working. The free AI is slow right now…"}
                       </div>
                     )}
                   </div>

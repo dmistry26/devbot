@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
-import { TOOLS } from "@/lib/ai/tools";
+import { SERVER_TOOLS, TOOLS } from "@/lib/ai/tools";
+import { searchLessonPlans } from "@/lib/school/search";
 import { SYSTEM, buildContext, type AgentId } from "@/lib/ai/prompt";
 import { ProviderError, getProvider, normalizeInput } from "@/lib/ai/provider";
 import type { GradesSnapshot, Snapshot } from "@/lib/types";
@@ -9,6 +10,8 @@ interface Body {
   messages: { role: "user" | "assistant"; content: string }[];
   snapshot: Snapshot;
   grades?: GradesSnapshot | null;
+  /** Per-class A/B pick, so lesson-plan date pairs resolve to the right day. */
+  days?: Record<string, 0 | 1>;
   now: string; // local YYYY-MM-DDTHH:mm from the browser
   agent: AgentId;
 }
@@ -46,7 +49,22 @@ export async function POST(req: Request) {
 
   try {
     const provider = await getProvider();
-    const res = await provider.run({ system: SYSTEM[agent], messages, tools: TOOLS });
+    const today = body.now.slice(0, 10);
+    const res = await provider.run({
+      system: SYSTEM[agent],
+      messages,
+      tools: [...TOOLS, ...SERVER_TOOLS],
+      serverTools: {
+        search_lesson_plans: async (input) => {
+          const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 80) : null);
+          try {
+            return await searchLessonPlans({ className: str(input.class_name), query: str(input.query), today, days: body.days ?? {} });
+          } catch (e) {
+            return { error: e instanceof Error ? e.message : "Couldn't search learn.vcs.net." };
+          }
+        },
+      },
+    });
     const actions: Action[] = res.calls
       .filter((c) => TOOL_NAMES.has(c.name))
       .map((c) => ({ type: c.name, ...normalizeInput(TOOLS.find((t) => t.name === c.name), c.input) }) as Action);

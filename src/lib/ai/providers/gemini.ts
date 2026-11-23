@@ -1,6 +1,6 @@
 import "server-only";
 import { ApiError, GoogleGenAI, type Content, type FunctionDeclaration } from "@google/genai";
-import { ProviderError, type Provider } from "../provider";
+import { MAX_SERVER_ROUNDS, ProviderError, type Provider } from "../provider";
 import type { ToolDef } from "../tools";
 
 // The free tier gets congested: newer models often time out or return
@@ -54,10 +54,12 @@ function toOptional(schema: Record<string, unknown>): Record<string, unknown> {
 const declarations = (tools: ToolDef[]): FunctionDeclaration[] =>
   tools.map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: toOptional(t.parameters) }));
 
+type GenResult = Awaited<ReturnType<GoogleGenAI["models"]["generateContent"]>>;
+
 export const gemini: Provider = {
   id: "gemini",
   label: "Google Gemini",
-  async run({ system, messages, tools }) {
+  async run({ system, messages, tools, serverTools }) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new ProviderError(
@@ -70,52 +72,92 @@ export const gemini: Provider = {
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
-    const order = lastGood ? [lastGood, ...MODELS.filter((m) => m !== lastGood)] : MODELS;
-    let busy = false;
+    const config = { systemInstruction: system, tools: [{ functionDeclarations: declarations(tools) }] };
 
-    for (const model of order) {
+    // First call: walk the model chain. Later rounds stay on the model that answered,
+    // because its reasoning (thought signatures) only works with the same model.
+    const first = await firstAnswer(ai, contents, config);
+    const model = first.model;
+    let res: GenResult = first.res;
+    const proposals: { name: string; input: Record<string, unknown> }[] = [];
+
+    for (let round = 0; ; round++) {
+      if (res.promptFeedback?.blockReason) throw new ProviderError("Gemini declined that request.", "refused");
+      const calls = (res.functionCalls ?? []).filter((c) => c.name);
+      const serverCalls = calls.filter((c) => serverTools?.[c.name!]);
+      for (const c of calls) if (!serverTools?.[c.name!]) proposals.push({ name: c.name!, input: (c.args ?? {}) as Record<string, unknown> });
+      if (!serverCalls.length || round >= MAX_SERVER_ROUNDS) {
+        return { text: (res.text ?? "").trim(), calls: proposals };
+      }
+      // Run the read-only tools, hand the results back, and let the model continue.
+      const modelTurn = res.candidates?.[0]?.content;
+      if (modelTurn) contents.push(modelTurn);
+      // Every call in the turn gets a response; proposals are acknowledged, not run.
+      const responses = await Promise.all(
+        calls.map(async (c) => {
+          let result: unknown = "Shown to the user as a proposal to confirm.";
+          if (serverTools?.[c.name!]) {
+            try {
+              result = await serverTools[c.name!]((c.args ?? {}) as Record<string, unknown>);
+            } catch (e) {
+              result = { error: e instanceof Error ? e.message : "The search failed." };
+            }
+          }
+          return { functionResponse: { id: c.id, name: c.name!, response: { result } } };
+        }),
+      );
+      contents.push({ role: "user", parts: responses });
       try {
-        const res = await ai.models.generateContent({
-          model,
-          contents,
-          config: { systemInstruction: system, tools: [{ functionDeclarations: declarations(tools) }] },
-        });
-        if (res.promptFeedback?.blockReason) throw new ProviderError("Gemini declined that request.", "refused");
-        lastGood = model;
-        console.info(`Gemini answered with ${model}`);
-        return {
-          text: (res.text ?? "").trim(),
-          calls: (res.functionCalls ?? [])
-            .filter((c) => c.name)
-            .map((c) => ({ name: c.name!, input: (c.args ?? {}) as Record<string, unknown> })),
-        };
+        res = await ai.models.generateContent({ model, contents, config });
       } catch (e) {
-        if (e instanceof ProviderError) throw e;
-        if (e instanceof ApiError) {
-          if ((e.status === 400 && /api key/i.test(e.message)) || e.status === 401 || e.status === 403) {
-            throw new ProviderError("Your Gemini API key was rejected. Check GEMINI_API_KEY.", "bad_key");
-          }
-          if (e.status === 400) {
-            console.error("Gemini rejected the request", model, e.message);
-            throw new ProviderError("The AI couldn't process that request.", "failed");
-          }
-          // 404 (model retired), 429 (quota), 5xx (overloaded): try the next model.
-          console.warn(`Gemini ${model} unavailable (${e.status}); trying next model`);
-          if (e.status === 429 || e.status >= 500) busy = true;
-          if (lastGood === model) lastGood = null;
-          continue;
-        }
-        // Timeouts and network errors: try the next model.
-        console.warn(`Gemini ${model} timed out or failed; trying next model`);
-        busy = true;
-        if (lastGood === model) lastGood = null;
+        throw toProviderError(e, model);
       }
     }
-    throw new ProviderError(
-      busy
-        ? "Google's free AI is overloaded right now. Try again in a minute."
-        : "No Gemini model is available for your key. Set GEMINI_MODEL in .env.local.",
-      busy ? "rate_limited" : "failed",
-    );
   },
 };
+
+async function firstAnswer(ai: GoogleGenAI, contents: Content[], config: object): Promise<{ model: string; res: GenResult }> {
+  const order = lastGood ? [lastGood, ...MODELS.filter((m) => m !== lastGood)] : MODELS;
+  let busy = false;
+  for (const model of order) {
+    try {
+      const res = await ai.models.generateContent({ model, contents, config });
+      lastGood = model;
+      console.info(`Gemini answered with ${model}`);
+      return { model, res };
+    } catch (e) {
+      if (e instanceof ApiError) {
+        if ((e.status === 400 && /api key/i.test(e.message)) || e.status === 401 || e.status === 403) {
+          throw new ProviderError("Your Gemini API key was rejected. Check GEMINI_API_KEY.", "bad_key");
+        }
+        if (e.status === 400) {
+          console.error("Gemini rejected the request", model, e.message);
+          throw new ProviderError("The AI couldn't process that request.", "failed");
+        }
+        // 404 (model retired), 429 (quota), 5xx (overloaded): try the next model.
+        console.warn(`Gemini ${model} unavailable (${e.status}); trying next model`);
+        if (e.status === 429 || e.status >= 500) busy = true;
+        if (lastGood === model) lastGood = null;
+        continue;
+      }
+      // Timeouts and network errors: try the next model.
+      console.warn(`Gemini ${model} timed out or failed; trying next model`);
+      busy = true;
+      if (lastGood === model) lastGood = null;
+    }
+  }
+  throw new ProviderError(
+    busy ? "Google's free AI is overloaded right now. Try again in a minute." : "No Gemini model is available for your key. Set GEMINI_MODEL in .env.local.",
+    busy ? "rate_limited" : "failed",
+  );
+}
+
+function toProviderError(e: unknown, model: string): ProviderError {
+  if (e instanceof ProviderError) return e;
+  if (e instanceof ApiError) {
+    console.error("Gemini error during follow-up", model, e.status, e.message);
+    if (e.status === 429 || e.status >= 500) return new ProviderError("Google's free AI is overloaded right now. Try again in a minute.", "rate_limited");
+    return new ProviderError(`The AI request failed (${e.status}).`, "failed");
+  }
+  return new ProviderError("Couldn't reach Gemini.", "failed");
+}

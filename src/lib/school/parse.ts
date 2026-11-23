@@ -230,6 +230,8 @@ export function parseLine(line: string, ctx: LineContext): ParsedLine[] {
   const { chapterIndex, chapters, day, schoolYearStart } = ctx;
   const text = line.trim();
   if (!text || /^(none|no homework|no hw|n\/a)\b/i.test(text) || /^here (is|are)\b/i.test(text)) return [];
+  // Teacher sign-offs and pleasantries aren't homework.
+  if (/^(have a (great|good|nice|wonderful|restful|happy)|enjoy (your|the)|see you|happy (thanksgiving|holidays?|weekend|friday)|good luck|thanks?\b|thank you|great (job|work)|nice work|rest up|stay safe)/i.test(text)) return [];
 
   const meeting = (c: Chapter | undefined) => (c ? (c.dates[day] ?? c.dates[0] ?? null) : null);
   const assigned = meeting(chapters[chapterIndex]);

@@ -109,3 +109,15 @@ export const TOOLS: ToolDef[] = [
     project_name: ns("Related project name or null"),
   }),
 ];
+
+/** Read-only tools the server executes during an answer (never shown as proposals). */
+export const SERVER_TOOLS: ToolDef[] = [
+  tool(
+    "search_lesson_plans",
+    "Search the student's learn.vcs.net lesson plans (all class days from 3 days ago to 2 months ahead) for tests, quizzes, homework or any topic. Use it when they ask about something at school (\"do I have a math test?\", \"when is the Spanish quiz?\", \"what are we doing in APUSH next week?\") and the answer isn't already in the context. Returns detected tests with dates plus matching lesson-plan lines.",
+    {
+      class_name: ns("Class or subject to search, e.g. \"AP Calculus BC\", \"math\", \"physics\". null searches every class."),
+      query: ns("Extra words to look for besides tests/quizzes, e.g. \"essay\", \"project\", \"chapter 6\". null for tests and quizzes only."),
+    },
+  ),
+];

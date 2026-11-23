@@ -12,7 +12,16 @@ export interface ProviderRequest {
   system: string;
   messages: ChatTurn[];
   tools: ToolDef[];
+  /**
+   * Read-only tools the server runs itself mid-answer (e.g. searching lesson
+   * plans). Return a JSON-able result. Other tool calls are returned as
+   * proposals for the user to confirm.
+   */
+  serverTools?: Record<string, (input: Record<string, unknown>) => Promise<unknown>>;
 }
+
+/** How many search rounds the model may do before it must answer. */
+export const MAX_SERVER_ROUNDS = 3;
 
 export interface ToolCall {
   name: string;

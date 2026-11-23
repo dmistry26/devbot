@@ -56,6 +56,8 @@ assert.deepEqual(one("Population parameter defined"), []);
 assert.deepEqual(one("Conclusion in Context"), []);
 assert.deepEqual(one("None! I am so proud of all of your hard work"), []);
 assert.deepEqual(one("NONE: Thanksgiving break"), []);
+assert.deepEqual(one("Have a great weekend, see you in Zoom on Tuesday!"), []);
+assert.deepEqual(one("Happy Thanksgiving! Rest up."), []);
 assert.deepEqual(one("Here is your research link for your project, here"), []);
 // link text + weekday
 r = one("Complete the What's The Problem Worksheet by Nov. 19/20, Here");
